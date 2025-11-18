@@ -6,6 +6,8 @@ __init__.py
 # C extensions
 *.so
 
+tami_graph.db*
+
 .venv/
 .secrets/
 logs/

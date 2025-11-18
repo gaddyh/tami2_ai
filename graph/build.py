@@ -1,50 +1,33 @@
-# graph/app.py (for example)
+# graph/build.py
 
+import sqlite3
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 
+from graph.state import TamiState
 from graph.nodes.prepare_messages import prepare_messages_node
 from graph.nodes.tami_llm import tami_llm_node
 from graph.nodes.call_tools import call_tools_node
-from graph.state import TamiState
-
-# Create ONE saver for the whole process
-checkpointer = SqliteSaver.from_file("tami_graph.db")
 
 
 def debug_log_node(state: TamiState) -> TamiState:
-    # print("[debug_log_node] messages:", state.get("messages"))
-    # print("[debug_log_node] final_output:", state.get("final_output"))
     return state
 
 
 def should_call_tools(state: TamiState) -> str:
-    """
-    Decide whether to go to call_tools or finish.
-    """
     messages = state.get("messages", [])
     if not messages:
         return "end"
-
     last_msg = messages[-1]
     tool_calls = last_msg.get("tool_calls", [])
-
-    if tool_calls:
-        return "call_tools"
-
-    return "end"
+    return "call_tools" if tool_calls else "end"
 
 
 def build_tami_app():
-    """
-    Minimal LangGraph app for Tami:
+    # Create a real sqlite3 connection, not a path string
+    conn = sqlite3.connect("tami_graph.db", check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
 
-        START
-          → prepare_messages
-          → tami_llm
-             ├─(tool_calls)→ call_tools → tami_llm → ... (second step)
-             └─(no tools) → debug_log → END
-    """
     graph = StateGraph(TamiState)
 
     graph.add_node("prepare_messages", prepare_messages_node)
@@ -67,6 +50,4 @@ def build_tami_app():
     graph.add_edge("call_tools", "tami_llm")
     graph.add_edge("debug_log", END)
 
-    # ⬅️ key line: make the graph stateful
-    app = graph.compile(checkpointer=checkpointer)
-    return app
+    return graph.compile(checkpointer=checkpointer)

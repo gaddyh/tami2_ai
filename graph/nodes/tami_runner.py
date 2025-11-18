@@ -3,7 +3,6 @@ from typing import Optional, List, Dict, Any
 
 from graph.app import tami_graph_app
 from graph.state import TamiState
-from agent.sessions import get_session
 from models.input import In
 from models.agent_output import TamiOutput
 from graph.history import convert_session_to_messages
@@ -31,34 +30,26 @@ async def _load_history_messages(session, max_items: int = 40) -> List[Dict[str,
 
 
 async def run_tami_turn(in_: In) -> TamiOutput:
-    session = get_session(in_.user_id, in_.thread_id)
     context = await _build_context(in_)
-
-    # NEW: load history from your SQLite session
-    history_messages = await _load_history_messages(session, max_items=40)
 
     state: TamiState = {
         "input_text": in_.text or "",
         "context": context,
-        "history": history_messages,
     }
 
-    final_state: TamiState = await tami_graph_app.ainvoke(state)
-    reply_text: str = final_state.get("final_output", "") or ""
+    config = {
+        "configurable": {
+            # REQUIRED for checkpointer:
+            "thread_id": in_.thread_id or in_.user_id or "cli-test",
+            # optional, but useful for routing/analytics:
+            "user_id": in_.user_id,
+            # optional namespace if you want to separate chat/scheduler/etc. later
+            # "checkpoint_ns": "chat",
+        }
+    }
 
-    # Persist only user + assistant messages
-    await session.add_items(
-        [
-            {
-                "role": "user",
-                "content": in_.text or "",
-            },
-            {
-                "role": "assistant",
-                "content": reply_text,
-            },
-        ]
-    )
+    final_state: TamiState = tami_graph_app.invoke(state, config=config)
+    reply_text: str = final_state.get("final_output", "") or ""
 
     return TamiOutput(
         final_output=reply_text,

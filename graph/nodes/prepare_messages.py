@@ -1,6 +1,6 @@
 from graph.state import TamiState
 from graph.prompt import TAMI_SYSTEM_PROMPT
-
+from graph.state import MAX_MESSAGES_FOR_MODEL
 import json
 
 def parse_tami_json(content: str) -> dict:
@@ -30,15 +30,12 @@ def parse_tami_json(content: str) -> dict:
             "assistant_message": content  # fallback to raw string
         }
 
-
 def prepare_messages_node(state: TamiState) -> TamiState:
     """
     Build the OpenAI chat messages array for this run.
-    Later you can also inject SQLite chat history here.
     """
-    user_text = state.get("input_text", "")
-    context = state.get("context", {})
-    history = state.get("history", [])
+    user_text = state.get("input_text", "") or ""
+    context = state.get("context", {}) or {}
 
     system_msg = {
         "role": "system",
@@ -55,8 +52,22 @@ def prepare_messages_node(state: TamiState) -> TamiState:
         "content": user_text,
     }
 
-    state["messages"] = [system_msg, context_msg, *history, user_msg]
+    # 1) Take previous messages, but *drop* old system/context
+    # Assume previous state["messages"] already included them, so filter by role
+    prev = state.get("messages", []) or []
+    history = [m for m in prev if m.get("role") != "system"]
+
+    # 2) Trim history to last N
+    if len(history) > MAX_MESSAGES_FOR_MODEL:
+        history = history[-MAX_MESSAGES_FOR_MODEL:]
+
+    # 3) Add the new user message to history
+    history.append(user_msg)
+    if len(history) > MAX_MESSAGES_FOR_MODEL:
+        history = history[-MAX_MESSAGES_FOR_MODEL:]
+
+    # 4) Build the final messages list for the model (and persist it)
+    state["messages"] = [system_msg, context_msg, *history]
     state["tool_calls_used"] = 0
 
-    #print("[TamiGraph] messages:", state["messages"])
     return state

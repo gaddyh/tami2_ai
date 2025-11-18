@@ -20,3 +20,5 @@ whatsapp-api-client-python
 uvicorn
 python-dotenv
 openai
+langgraph-checkpoint-sqlite
+aiosqlite

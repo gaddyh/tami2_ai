@@ -41,4 +41,9 @@ async def main():
 
 
 if __name__ == "__main__":
+    messages = [1, 2, 3, 4,5,6,7,8,9,10]
+    MAX = 6
+
+    print(messages[-MAX:])   # keeps newest (good!)
+    print(messages[:MAX])   # keeps oldest (bad)
     asyncio.run(main())
