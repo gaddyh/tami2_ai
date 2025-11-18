@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WhatsApp QR Login</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2em;
+    }
+    #qr {
+      margin-top: 2em;
+    }
+    input {
+      font-size: 1em;
+      padding: 0.4em;
+      width: 240px;
+    }
+    button {
+      font-size: 1em;
+      padding: 0.5em 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Connect your WhatsApp</h1>
+
+  <input type="text" id="phone" placeholder="Enter your phone (e.g. 9725XXXXXXX)" />
+  <br><br>
+  <button onclick="startLogin()">Start WhatsApp Login</button>
+
+  <div id="qr">
+    <p>QR code will appear here after login starts.</p>
+    <img id="qr-image" src="" style="display:none;" />
+  </div>
+
+  <script>
+    async function startLogin() {
+  const phone = document.getElementById("phone").value.trim();
+  if (!phone.match(/^\d{9,15}$/)) {
+    alert("Please enter a valid phone number in international format.");
+    return;
+  }
+
+  const nodeUrl = "{{ node_url }}";
+
+  // 🛠️ Send to Node server, not FastAPI
+  await fetch(`${nodeUrl}/start-login/${phone}`, { method: 'POST' });
+
+  const qrImg = document.getElementById("qr-image");
+  qrImg.style.display = 'block';
+
+  const interval = setInterval(async () => {
+    const res = await fetch(`${nodeUrl}/qr/${phone}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.qr) {
+        qrImg.src = `data:image/png;base64,${data.qr}`;
+      }
+      if (data.status === "ready") {
+        clearInterval(interval);
+        alert("WhatsApp connected!");
+      }
+    }
+  }, 2000);
+}
+  </script>
+</body>
+</html>
