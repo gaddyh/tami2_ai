@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from langfuse import Evaluation
+from zoneinfo import ZoneInfo
 
 
 def _normalize_tool_name(name: Any) -> Any:
@@ -83,8 +84,11 @@ def _coerce_args(value: Any) -> Dict[str, Any]:
 
 def _extract_tool_plan(output: Any) -> List[Dict[str, Any]]:
     """
-    Returns a list of {tool, args} dicts either from the legacy Agent SDK
-    structure or from the new LLM JSON (tool_plan) structure.
+    Returns a list of {tool, args} dicts from:
+      - legacy Agent SDK style: {"tool": "...", "args": {...}}
+      - old JSON style:        {"tool_plan": [{...}, {...}]}
+      - NEW router style:      {"actions": [{...}, {...}], "followup_message": ...}
+      - optional wrapper:      {"planner_output": { ... one of the above ... }}
     """
     obj = _coerce_mapping_like(output)
     plan: List[Dict[str, Any]] = []
@@ -92,6 +96,14 @@ def _extract_tool_plan(output: Any) -> List[Dict[str, Any]]:
     if not obj:
         return plan
 
+    # Optional wrapper: planner_output
+    if "planner_output" in obj and isinstance(obj["planner_output"], (dict, str)):
+        inner = _coerce_mapping_like(obj["planner_output"])
+        inner_plan = _extract_tool_plan(inner)
+        if inner_plan:
+            return inner_plan
+
+    # 1) Old JSON style – explicit tool_plan list
     tool_plan = obj.get("tool_plan")
     if isinstance(tool_plan, list):
         for raw_entry in tool_plan:
@@ -103,6 +115,19 @@ def _extract_tool_plan(output: Any) -> List[Dict[str, Any]]:
         if plan:
             return plan
 
+    # 2) NEW router style – actions list
+    actions = obj.get("actions")
+    if isinstance(actions, list):
+        for raw_entry in actions:
+            entry = raw_entry if isinstance(raw_entry, dict) else _coerce_mapping_like(raw_entry)
+            tool = _normalize_tool_name(entry.get("tool"))
+            if not tool:
+                continue
+            plan.append({"tool": tool, "args": _coerce_args(entry.get("args"))})
+        if plan:
+            return plan
+
+    # 3) Simple single-tool shape: {"tool": "...", "args": {...}}
     tool = _normalize_tool_name(obj.get("tool"))
     if tool:
         plan.append({"tool": tool, "args": _coerce_args(obj.get("args"))})
@@ -113,6 +138,7 @@ def _extract_tool_plan(output: Any) -> List[Dict[str, Any]]:
 def _first_tool_call(output: Any) -> Optional[Dict[str, Any]]:
     plan = _extract_tool_plan(output)
     return plan[0] if plan else None
+
 
 def _expected_no_tool(expected_output: Any) -> bool:
     if not isinstance(expected_output, dict):
@@ -139,6 +165,7 @@ def _is_plain_text_response(output: Any) -> bool:
 
     return False
 
+
 def schema_valid_evaluator(*, input, output, expected_output=None, metadata=None, **kwargs):
     # Case 1: dataset says "no tool expected"
     if _expected_no_tool(expected_output):
@@ -164,7 +191,7 @@ def schema_valid_evaluator(*, input, output, expected_output=None, metadata=None
             comment="no tool expected but output not recognized as plain text",
         )
 
-    # Case 2: normal tool-based item (your old logic)
+    # Case 2: normal tool-based item
     first_call = _first_tool_call(output)
     ok = first_call is not None
     return Evaluation(
@@ -172,6 +199,8 @@ def schema_valid_evaluator(*, input, output, expected_output=None, metadata=None
         value=1.0 if ok else 0.0,
         comment=None if ok else "output does not contain a tool plan entry",
     )
+
+
 def tool_match_evaluator(*, input, output, expected_output=None, **kwargs):
     if not isinstance(expected_output, dict):
         return Evaluation(
@@ -190,7 +219,7 @@ def tool_match_evaluator(*, input, output, expected_output=None, **kwargs):
         comment = None if value == 1.0 else f"unexpected tool call: {actual_tool!r}"
         return Evaluation(name="tool_match", value=value, comment=comment)
 
-    # Normal tool case (old logic)
+    # Normal tool case
     value = 1.0 if actual_tool == expected_tool else 0.0
     comment = None
     if value == 0.0:
@@ -242,7 +271,7 @@ def _extract_inner_args(tool_name: str, root: dict) -> dict:
         return root  # flat
 
     return root
-        
+
 
 def args_match_evaluator(*, input, output, expected_output=None, **kwargs):
     if _expected_no_tool(expected_output):
@@ -278,7 +307,7 @@ def args_match_evaluator(*, input, output, expected_output=None, **kwargs):
             return Evaluation(
                 name="args_match",
                 value=0.0,
-                comment=f"item_type mismatch: expected={exp_item_type!r}, actual={act_item_type!r}"
+                comment=f"item_type mismatch: expected={exp_item_type!r}, actual={act_item_type!r}",
             )
 
         # If statuses exist (e.g. pending tasks), check them too
@@ -289,14 +318,11 @@ def args_match_evaluator(*, input, output, expected_output=None, **kwargs):
             return Evaluation(
                 name="args_match",
                 value=0.0,
-                comment=f"status mismatch: expected={exp_status!r}, actual={act_status!r}"
+                comment=f"status mismatch: expected={exp_status!r}, actual={act_status!r}",
             )
 
         # All good
         return Evaluation(name="args_match", value=1.0, comment=None)
-
-
-
 
     tool_name = actual_tool or expected_tool or ""
     if not tool_name:
@@ -336,9 +362,6 @@ def args_match_evaluator(*, input, output, expected_output=None, **kwargs):
         )
 
     return Evaluation(name="args_match", value=1.0, comment=None)
-
-from datetime import datetime
-from zoneinfo import ZoneInfo  # add this import at top of file
 
 
 def _parse_iso_to_aware(s: str, tz_str: str) -> datetime:
@@ -411,6 +434,11 @@ def time_semantics_evaluator(*, input, output, expected_output=None, metadata=No
         expected = _extract_inner_args(tool, expected_root)
         act_str = actual.get("datetime")
         exp_str = expected.get("datetime")
+    elif tool == "process_scheduled_message":
+        actual = _extract_inner_args(tool, actual_root)
+        expected = _extract_inner_args(tool, expected_root)
+        act_str = actual.get("scheduled_time")
+        exp_str = expected.get("scheduled_time")
     else:
         # non time-based tool: don't penalize
         return Evaluation(
@@ -445,12 +473,14 @@ def time_semantics_evaluator(*, input, output, expected_output=None, metadata=No
         comment=f"datetime mismatch: expected={exp_dt}, actual={act_dt}",
     )
 
+
 def _get_actual_text(output: Any) -> str:
     """
     Extract the plain-text answer from the LLM result.
     Priority:
     1) __raw_output (our wrapper for plain text)
     2) assistant_message (if you ever use it here)
+    3) response (new responder JSON: {"response": "..."})
     """
     obj = _coerce_mapping_like(output)
     if not obj:
@@ -464,8 +494,12 @@ def _get_actual_text(output: Any) -> str:
     if isinstance(msg, str):
         return msg
 
+    resp = obj.get("response")
+    if isinstance(resp, str):
+        return resp
+
     return ""
-    
+
 
 def raw_output_includes_evaluator(*, input, output, expected_output=None, **kwargs):
     """

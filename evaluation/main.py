@@ -1,5 +1,5 @@
 from langfuse import get_client
-from evaluation.tasks import tami2_task
+from evaluation.tami_router_task import tami_router_task
 from evaluation.evaluators import (
     schema_valid_evaluator,
     tool_match_evaluator,
@@ -10,12 +10,12 @@ from evaluation.evaluators import (
 
 langfuse = get_client()
 
-dataset = langfuse.get_dataset("assistant-v1")
+dataset = langfuse.get_dataset("linear-tami")
 
 result = dataset.run_experiment(
-    name="assistant-v1-eval",
-    description="Replay Assistant on multi-turn dataset",
-    task=tami2_task,
+    name="linear-tami-eval",
+    description="Replay Linear Tami on multi-turn dataset",
+    task=tami_router_task,
     evaluators=[
         schema_valid_evaluator,
         tool_match_evaluator,
@@ -23,7 +23,7 @@ result = dataset.run_experiment(
         time_semantics_evaluator,
         overall_evaluator,
     ],
-    metadata={"app": "assistant", "variant": "v1"},
+    metadata={"app": "linear-tami", "variant": "v1"},
 )
 
 print(result.format(include_item_results=True))
