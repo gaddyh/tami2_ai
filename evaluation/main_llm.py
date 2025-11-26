@@ -11,7 +11,7 @@ from evaluation.evaluators import (
 
 langfuse = get_client()
 
-dataset = langfuse.get_dataset("assistant-llm-v2")
+dataset = langfuse.get_dataset("assistant-llm")
 
 result = dataset.run_experiment(
     name="assistant-llm-v2-eval",

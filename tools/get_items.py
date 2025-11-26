@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Literal
 from store.user import UserStore
-from tools.base import function_tool, span_attrs, mark_error, redact, summarize, _fail, _ok, format_items_for_llm
+from tools.base import instrument_io, summarize, _fail, _ok, format_items_for_llm
 from models.app_context import AppCtx, LastTasksListing, LastTaskEntry
-from agents import RunContextWrapper
 from store.reminder_item_store import ReminderStore
 from store.task_item_store import TaskStore
 from store.scheduled_messages_store import ScheduledMessageStore
@@ -30,7 +29,7 @@ def _build_last_tasks_listing(tasks: list[dict]) -> LastTasksListing:
     )
 
 def _get_items(
-    ctx: RunContextWrapper[AppCtx],
+    user_id: str,
     item_type: Literal["reminders", "tasks", "events", "scheduled_messages", "action_items"],
     status: Literal["all", "pending", "completed"] = "pending",
     from_date: Optional[datetime | str] = None,
@@ -40,7 +39,6 @@ def _get_items(
     Get reminders, tasks, or events filtered by status and/or date range.
     Returns: { ok: bool, items: list, error?: str }
     """
-    user_id = ctx.context.user_id
     user_tz = _user_tz(user_id)
 
     # ---- coerce possible string dates -> datetime, then to UTC ----
@@ -101,22 +99,21 @@ def _get_items(
     except Exception:
         return _fail("internal_error", {"items": []})
 
-@function_tool(strict_mode=True)
 @instrument_io(
     name="tool.get_items",
     meta={"agent": "tami", "operation": "tool", "tool": "get_items", "schema": "GetItems.v1"},
-    input_fn=lambda ctx, item_type, status, from_date, to_date: {"user_id": ctx.context.user_id, "item_type": item_type, "status": status, "from_date": from_date, "to_date": to_date},
+    input_fn=lambda user_id, item_type, status, from_date, to_date: {"user_id": user_id, "item_type": item_type, "status": status, "from_date": from_date, "to_date": to_date},
     output_fn=summarize,
     redact=True,
 )
-def get_items(ctx: RunContextWrapper[AppCtx],  item_type: Literal["reminders", "tasks", "events", "scheduled_messages", "action_items"],
+def get_items(user_id: str, item_type: Literal["reminders", "tasks", "events", "scheduled_messages", "action_items"],
     status: Literal["all", "pending", "completed"] = "pending",
     from_date: Optional[datetime | str] = None,
     to_date: Optional[datetime | str] = None,):
     with span_attrs("tool.get_items", agent="tami", operation="tool", tool="get_items") as s:
         s.update(input={"filters": redact({"item_type": item_type, "status": status, "from_date": from_date, "to_date": to_date})})
         try:
-            out = _get_items(ctx=ctx, item_type=item_type, status=status, from_date=from_date, to_date=to_date)
+            out = _get_items(user_id=user_id, item_type=item_type, status=status, from_date=from_date, to_date=to_date)
             s.update(output={"count": len(out) if isinstance(out, list) else None, **summarize(out)})
             return out
         except Exception as e:

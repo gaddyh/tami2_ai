@@ -1,8 +1,12 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Annotated
 
+# models/scheduled_message_item.py
+from typing import Optional, Literal, Annotated
+from pydantic import BaseModel, Field
+
 class ScheduledMessageItem(BaseModel):
-    item_id: str
+    item_id: Optional[str] = None
     command: Literal["create", "update", "delete"]
     item_type: Literal["message"] = "message"
     message: str

@@ -27,6 +27,8 @@ def call_tools_node(state: TamiState) -> TamiState:
 
         try:
             raw_args = json.loads(raw_args_json)
+            print("name:", name)
+            print("raw_args:", raw_args)
         except json.JSONDecodeError:
             raw_args = {}
 

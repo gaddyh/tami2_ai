@@ -20,35 +20,146 @@ class Reminder(BaseModel):
     method: Literal["popup", "email"] = "popup"
     minutes: int
 
+from pydantic import Field
+
 class EventItem(BaseActionItem):
-    item_type: Literal["event"] = "event"
-    force: bool = False  # if True, proceed even if the slot overlaps existing events
+    item_type: Literal["event"] = Field(
+        "event",
+        description="Always 'event'. Used to distinguish event items from tasks or other item types."
+    )
 
-    # For timed events
-    datetime: Optional[str] = None         # ISO8601 start with timezone
-    end_datetime: Optional[str] = None     # ISO8601 end with timezone
-    timezone: Optional[str] = None
+    force: bool = Field(
+        False,
+        description="If true, create/update the event even if it overlaps existing events (override double-booking)."
+    )
 
-    # For all-day events
-    date: Optional[str] = None             # YYYY-MM-DD (start)
-    end_date: Optional[str] = None         # YYYY-MM-DD (exclusive end)
+    datetime: Optional[str] = Field(
+        None,
+        description="Start time in ISO8601 with timezone, e.g. '2025-11-26T14:00:00+02:00'."
+    )
 
-    all_day: Optional[bool] = False
-    location: Optional[str] = None
-    participants: Optional[List[Participant]] = None
-    recurrence: Optional[Recurrence] = None
-    reminders: Optional[List[Reminder]] = None
+    end_datetime: Optional[str] = Field(
+        None,
+        description="End time in ISO8601 with timezone. If omitted, a default duration may be assumed."
+    )
 
-    delete_scope: Literal["single","series","this_and_following"] = "single"
-    send_updates: Optional[bool] = False
-    notify: Optional[bool] = False
+    timezone: Optional[str] = Field(
+        None,
+        description="IANA timezone name (e.g. 'Asia/Jerusalem'), used if times need explicit zone context."
+    )
+
+    date: Optional[str] = Field(
+        None,
+        description="Start date (YYYY-MM-DD) for all-day events."
+    )
+
+    end_date: Optional[str] = Field(
+        None,
+        description="Exclusive end date (YYYY-MM-DD) for all-day events. For a one-day event, this is start+1."
+    )
+
+    all_day: Optional[bool] = Field(
+        False,
+        description="If true, use date/end_date instead of datetime/end_datetime."
+    )
+
+    location: Optional[str] = Field(
+        None,
+        description="Human-readable location (address, room, or link)."
+    )
+
+    participants: Optional[List[Participant]] = Field(
+        None,
+        description="List of participants (name/email). Emails may be resolved from contacts."
+    )
+
+    recurrence: Optional[Recurrence] = Field(
+        None,
+        description="Recurrence rule for repeating events (daily/weekly/etc.)."
+    )
+
+    reminders: Optional[List[Reminder]] = Field(
+        None,
+        description="List of reminders (e.g. 30 minutes before, 1 day before)."
+    )
+
+    delete_scope: Literal["single", "series", "this_and_following"] = Field(
+        "single",
+        description=(
+            "How deletion applies to recurring events: "
+            "'single' = this instance only, "
+            "'series' = entire series, "
+            "'this_and_following' = this and all future instances."
+        )
+    )
+
+    send_updates: Optional[bool] = Field(
+        False,
+        description="If true, send calendar updates/invites to participants when changes occur."
+    )
+
+    notify: Optional[bool] = Field(
+        False,
+        description="If true, explicitly notify participants about this change (implementation-specific)."
+    )
+
 
 from typing import Any, Dict
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
+
 class ProcessedEventResult(BaseModel):
-    index: int
-    ok: bool
-    item_id: Optional[str] = None
-    error: Optional[str] = None
-    code: Optional[str] = None
-    # For slot_taken etc. – keep type loose, you already define the shape
-    conflicts: Optional[List[Dict[str, Any]]] = None
+    """
+    Normalized result returned by the event store after applying a create,
+    update, or delete operation on an event.
+    """
+
+    index: int = Field(
+        ...,
+        description=(
+            "Zero-based index of this operation within a batch. "
+            "Always present, even when multiple events are processed together."
+        ),
+    )
+
+    ok: bool = Field(
+        ...,
+        description=(
+            "True if the event operation succeeded. "
+            "False if the operation failed or produced an error."
+        ),
+    )
+
+    item_id: Optional[str] = Field(
+        None,
+        description=(
+            "The unique identifier of the event that was created or updated. "
+            "For deletions, may be null. Absent if the operation failed."
+        ),
+    )
+
+    error: Optional[str] = Field(
+        None,
+        description=(
+            "Human-readable error message, present only when ok=False. "
+            "Describes what went wrong during processing."
+        ),
+    )
+
+    code: Optional[str] = Field(
+        None,
+        description=(
+            "Machine-readable error code (e.g., 'slot_taken', 'not_found', "
+            "'invalid_time'). Useful for planner or UI logic."
+        ),
+    )
+
+    conflicts: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description=(
+            "List of conflicting existing events when the requested event overlaps "
+            "a taken slot. Structure is intentionally flexible so the backend may "
+            "include any relevant fields (titles, times, IDs, metadata). "
+            "Only populated if ok=False and code indicates a scheduling conflict."
+        ),
+    )

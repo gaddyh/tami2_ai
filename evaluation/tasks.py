@@ -54,7 +54,8 @@ async def tami2_task(*, item, **kwargs):
         "context": ctx,
     }
     out1 = tami_graph_app.invoke(state1)
-    print("Reply 1:", out1["final_output"])    # Call your real agent
+    print("out1 raw 1:", out1)
+    #print("Reply 1:", out1["final_output"]) 
 
     # Now choose what the "output" of the experiment is.
     # For a tool-based evaluation, you'd typically return
@@ -65,13 +66,17 @@ async def tami2_task(*, item, **kwargs):
 
 def tami_llm_task(item=None, **kwargs):
     input_data = item.input or {}
-    expected_output = item.expected_output
+    expected_output = item.expected_output  # only used by evaluators, that's fine
 
     # Extract dataset-provided "now"
     eval_now = input_data.get("evaluation_now")
     default_tz = input_data.get("tz", "Asia/Jerusalem")
 
     user_messages = list(input_data.get("messages", []))
+
+    # TEMP: debug logging
+    print("=== tami_llm_task input ===")
+    print(user_messages, eval_now)
 
     # -------------------------
     # 1) SYSTEM MESSAGE #1
@@ -101,11 +106,34 @@ def tami_llm_task(item=None, **kwargs):
     }
 
     # Run the LLM node once
-    state = tami_llm_node(state)
+    try:
+        state = tami_llm_node(state)
+        print("=== tami_llm_task output ===")
+        #print(state)
+    except Exception as e:
+        print(f"LLM node failed: {e}")
+        return {"__raw_output": str(e)}
 
+    # ---------- NEW: prefer tool_calls ----------
+    messages = state.get("messages", [])
+    tool_plan = extract_tool_plan_from_messages(messages)
+
+    if tool_plan:
+        # Shape this to match your dataset expected_output
+        # (adjust keys if needed: tool_plan vs tool, etc.)
+        last_msg = messages[-1] if messages else {}
+        assistant_text = last_msg.get("content") or ""
+
+        parsed = {
+            "tool_plan": tool_plan,
+            "should_return_to_llm": False,
+            "assistant_message": assistant_text,
+        }
+        return parsed
+
+    # ---------- FALLBACK: parse final_output JSON ----------
     raw = state.get("final_output")
 
-    # 🔧 Parse the JSON your prompt tells the LLM to output
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw)
@@ -117,6 +145,7 @@ def tami_llm_task(item=None, **kwargs):
         parsed = {"__raw_output": raw}
 
     return parsed
+
 
 
 def extract_tool_plan_from_messages(messages):

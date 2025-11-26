@@ -57,16 +57,12 @@ def prepare_messages_node(state: TamiState) -> TamiState:
     prev = state.get("messages", []) or []
     history = [m for m in prev if m.get("role") != "system"]
 
-    # 2) Trim history to last N
-    if len(history) > MAX_MESSAGES_FOR_MODEL:
-        history = history[-MAX_MESSAGES_FOR_MODEL:]
-
-    # 3) Add the new user message to history
+    # 2) Add the new user message to history
     history.append(user_msg)
     if len(history) > MAX_MESSAGES_FOR_MODEL:
         history = history[-MAX_MESSAGES_FOR_MODEL:]
 
-    # 4) Build the final messages list for the model (and persist it)
+    # 3) Build the final messages list for the model (and persist it)
     state["messages"] = [system_msg, context_msg, *history]
     state["tool_calls_used"] = 0
 

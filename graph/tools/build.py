@@ -9,6 +9,25 @@ from models.base_item import ItemStatus
 from models.task_item import TaskFocus
 
 # ---------- Tool argument models ----------
+class ProcessContactMessageArgs(BaseModel):
+    """Arguments for process_contact_message: send or manage a contact message."""
+    action: ScheduledMessageItem
+
+    model_config = {"extra": "forbid"}
+
+class GetCandidatesRecipientInfoArgs(BaseModel):
+    """
+    Arguments for get_candidates_recipient_info:
+    resolve a free-text name (e.g. 'דנה') into candidate recipients.
+    """
+    name: str  # the name as written by the user, e.g. "דנה"
+    purpose: Literal["send_message", "schedule_message", "event_participant", "other"] = "send_message"
+
+    # if later you want to distinguish groups/individuals, add flags here
+    # include_groups: bool = True
+    # include_individuals: bool = True
+
+    model_config = {"extra": "forbid"}
 
 class GetItemsArgs(BaseModel):
     """Arguments for get_items: fetch reminders/tasks/events/messages/action_items."""
@@ -39,12 +58,6 @@ class ProcessTaskArgs(BaseModel):
 class ProcessReminderArgs(BaseModel):
     """Arguments for process_reminder: operate on a single reminder."""
     reminder: ReminderItem
-
-
-class ProcessScheduledMessageArgs(BaseModel):
-    """Arguments for process_scheduled_message: operate on a single scheduled message."""
-    message: ScheduledMessageItem
-
 
 class WebSearchArgs(BaseModel):
     """Arguments for web_search tool."""
@@ -81,9 +94,9 @@ TOOL_MODELS = {
     ),
 
     # Scheduled messages
-    "process_scheduled_message": (
-        ProcessScheduledMessageArgs,
-        "Create, update or delete a scheduled WhatsApp message.",
+   "process_contact_message": (
+        ProcessContactMessageArgs,
+        "Send or update a WhatsApp message to a specific contact or chat_id.",
     ),
 
     # Items listing
@@ -96,6 +109,10 @@ TOOL_MODELS = {
     "web_search": (
         WebSearchArgs,
         "Perform a Tavily web search and return summarized results with metrics & spans.",
+    ),
+    "get_candidates_recipient_info": (
+        GetCandidatesRecipientInfoArgs,
+        "Get candidate recipient info for a given name.",
     ),
 }
 
@@ -118,7 +135,9 @@ def build_tools():
             }
         )
     return tools
-
+def get_items(args: GetItemsArgs) -> Dict[str, Any]:
+    return {"items": []}
 TOOL_IMPLS = {
+    "get_items": get_items,
 }
 TOOLS = build_tools()

@@ -1,5 +1,5 @@
 from langfuse import get_client
-from evaluation.tasks import tami_llm_task
+from evaluation.tasks import tami2_task
 from evaluation.evaluators import (
     schema_valid_evaluator,
     tool_match_evaluator,
@@ -15,7 +15,7 @@ dataset = langfuse.get_dataset("assistant-v1")
 result = dataset.run_experiment(
     name="assistant-v1-eval",
     description="Replay Assistant on multi-turn dataset",
-    task=tami_llm_task,
+    task=tami2_task,
     evaluators=[
         schema_valid_evaluator,
         tool_match_evaluator,

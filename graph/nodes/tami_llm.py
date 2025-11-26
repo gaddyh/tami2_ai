@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv(".venv/.env")
 client = OpenAI()  # assumes OPENAI_API_KEY in env
 from graph.tools.build import TOOLS
+from typing import Dict, Any
 
 def tami_llm_node(state: TamiState) -> TamiState:
     """
@@ -18,7 +19,12 @@ def tami_llm_node(state: TamiState) -> TamiState:
         tool_choice="auto",
         temperature=0.0,
     )
+
+    # TEMP: debug logging
+    print("=== tami_llm_node output ===")
+    #print(resp)
     choice = resp.choices[0].message
+    print("choice:", choice)
     assistant_msg: Dict[str, Any] = {
         "role": "assistant",
         "content": choice.content,
@@ -42,6 +48,10 @@ def tami_llm_node(state: TamiState) -> TamiState:
     messages.append(assistant_msg)
     state["messages"] = messages
 
+
+    # TEMP: debug logging
+    #print("=== tami_llm_node output ===")
+    #print(resp)     
     # If there are no tool calls, this is the final answer for the user
     if not tool_calls:
         state["final_output"] = choice.content or ""

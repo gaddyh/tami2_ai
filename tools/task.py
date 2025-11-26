@@ -1,8 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict
-from tools.base import function_tool, mark_error, summarize, _fail, _ok, _validate
+from tools.base import mark_error, summarize, _fail, _ok, _validate
 from observability.obs import instrument_io, span_attrs, mark_error
-from agents import RunContextWrapper
 from models.task_item import TaskItem
 from models.app_context import AppCtx
 Json = Dict[str, Any]
@@ -33,13 +32,12 @@ def _task_to_patch(task: TaskItem) -> Dict[str, Any]:
         data["due"] = None
     return _drop_nones(data)
 
-def _process_task(ctx: RunContextWrapper[AppCtx], task: TaskItem) -> dict:
+def _process_task(user_id: str, task: TaskItem) -> dict:
     """
     Create/update/delete a TASK (Firestore-only MVP).
     Returns: { ok: bool, item_id: str|None, error: str|None, code: str|None }
     """
     try:
-        user_id = ctx.context.user_id
         if not user_id:
             return _fail("missing_user_id", code="validation_error")
 
@@ -75,24 +73,23 @@ def _process_task(ctx: RunContextWrapper[AppCtx], task: TaskItem) -> dict:
         return _fail("unknown_command")
 
     except Exception as e:
-        mark_error(e, kind="ToolError.process_task", span=s); raise
+        mark_error(e, kind="ToolError.process_task"); raise
         return _fail("unhandled_exception", code="internal_error")
 
 
 
-@function_tool(strict_mode=True)
 @instrument_io(
         name="tool.process_task",
         meta={"agent": "tami", "operation": "tool", "tool": "process_task", "schema": "TaskItem.v1"},
-        input_fn=lambda ctx, task: {"user_id": ctx.context.user_id, "task": task},
+        input_fn=lambda user_id, task: {"user_id": user_id, "task": task},
         output_fn=summarize,
         redact=True,
     )   
-def process_task(ctx: RunContextWrapper[AppCtx], task: TaskItem) -> dict:
+def process_task(user_id: str, task: TaskItem) -> dict:
     with span_attrs("tool.process_task", agent="tami", operation="tool", tool="process_task") as s:
         s.update(input={"task": task})
         try:
-            out = _process_task(ctx, task)
+            out = _process_task(user_id, task)
             s.update(output=summarize(out)); return out
         except Exception as e:
             mark_error(e, kind="ToolError.process_task", span=s); raise

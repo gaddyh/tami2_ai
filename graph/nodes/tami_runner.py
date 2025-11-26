@@ -7,7 +7,6 @@ from models.input import In
 from models.agent_output import TamiOutput
 from graph.history import convert_session_to_messages
 
-
 async def _build_context(in_: In) -> dict:
     return {
         "user_id": in_.user_id,
@@ -27,7 +26,6 @@ async def _load_history_messages(session, max_items: int = 40) -> List[Dict[str,
     raw_items = await session.get_items(limit=max_items)
     history_messages = convert_session_to_messages(raw_items)
     return history_messages
-
 
 async def run_tami_turn(in_: In) -> TamiOutput:
     context = await _build_context(in_)

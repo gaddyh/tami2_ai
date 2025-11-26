@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional, Literal, Callable
 from datetime import datetime
 
 # External deps used by all tools
-from agents import function_tool
 from observability.obs import span_attrs, instrument_io
 from observability.telemetry import mark_error
 from models.base_item import BaseActionItem

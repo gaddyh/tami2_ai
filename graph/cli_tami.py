@@ -7,22 +7,15 @@ from models.input import In, Source  # use your actual import / enum
 from graph.nodes.prepare_messages import parse_tami_json
 
 async def main():
-    user_id = "cli-user"
-    thread_id = "cli-thread-1"
+    user_id = "cli-user2" + str(datetime.now(timezone.utc))
+    thread_id = "cli-thread-2" + str(datetime.now(timezone.utc))
     tz = "Asia/Jerusalem"
 
     print("Tami CLI. Type 'exit' to quit.\n")
 
     while True:
-        try:
-            text = input("> ").strip()
-        except EOFError:
-            break
-
-        if not text:
-            continue
-        if text.lower() in ("exit", "quit", "q"):
-            break
+       
+        text = "what are my tasks?"
 
         in_ = In(
             tz=tz,
@@ -36,8 +29,19 @@ async def main():
         )
 
         out = await run_tami_turn(in_)
+        print("out raw:", out)
         res = parse_tami_json(out.final_output)
-        print(f"Tami: {res}\n")
+        #print(f"Tami: {res}\n")
+
+        try:
+            text = input("> ").strip()
+        except EOFError:
+            break
+
+        if not text:
+            continue
+        if text.lower() in ("exit", "quit", "q"):
+            break
 
 
 if __name__ == "__main__":

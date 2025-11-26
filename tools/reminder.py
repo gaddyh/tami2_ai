@@ -1,12 +1,10 @@
 from __future__ import annotations
 from typing import Dict, Any
 from models.reminder_item import ReminderItem
-from tools.base import function_tool, instrument_io, summarize, _validate, _ok, _fail
-from agents import RunContextWrapper
+from tools.base import instrument_io, summarize, _validate, _ok, _fail
 from store.reminder_item_store import ReminderStore
 from models.app_context import AppCtx
 
-@function_tool(strict_mode=True)
 @instrument_io(
     name="tool.process_reminder",
     meta={"agent": "tami", "operation": "tool", "tool": "process_reminder", "schema": "ReminderItem.v1"},
