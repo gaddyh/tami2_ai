@@ -1,6 +1,6 @@
-from datetime import datetime
 from typing import Dict, Any
 from agent.linear_flow.tools import ToolResult
+from agent.linear_flow.state import LinearAgentState
 
 def update_context_with_tool_result(
     context: Dict[str, Any],
@@ -57,3 +57,27 @@ def update_context_with_tool_result(
         tool_ns["meta"]["error_count"] = tool_ns["meta"].get("error_count", 0) + 1
 
     return context
+
+from agent.linear_flow.state import LinearAgentState
+
+def add_message(role: str, content: str, state: LinearAgentState, messages_key="messages") -> LinearAgentState:
+    target_agent = state.get("target_agent")
+    if not target_agent:
+        # Fail fast – you REALLY don't want untagged messages floating around
+        raise ValueError("add_message called without state['target_agent'] set")
+
+    if messages_key not in ["messages", "llm_messages"]:
+        raise ValueError("add_message called with invalid messages_key")
+
+    msg = {
+        "role": role,
+        "content": content,
+        "target_agent": target_agent,
+    }
+
+    if role == "system":
+        state.setdefault("llm_messages", []).append(msg)
+    else:
+        state.setdefault(messages_key, []).append(msg)
+
+    return state

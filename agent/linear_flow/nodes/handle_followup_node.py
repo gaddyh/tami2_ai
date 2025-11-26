@@ -1,5 +1,6 @@
 from agent.linear_flow.state import LinearAgentState
 from langgraph.types import interrupt
+from agent.linear_flow.utils import add_message
 
 def handle_followup(state: LinearAgentState) -> LinearAgentState:
     question = state.get("followup_message") or ""
@@ -20,12 +21,8 @@ def handle_followup(state: LinearAgentState) -> LinearAgentState:
     else:
         content = str(answer)
 
-    state.setdefault("messages", []).append(
-                    {"role": "user", "content": content}
-                )
-    state.setdefault("llm_messages", []).append(
-                    {"role": "user", "content": content}
-                )
+    add_message("user", content, state)
+    add_message("user", content, state, "llm_messages")
     # When resumed, answer is the user's reply
     state["followup_message"] = None
     return state

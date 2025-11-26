@@ -5,6 +5,7 @@ from openai import OpenAI
 from openai import APIError, BadRequestError, APITimeoutError
 import time
 from typing import Any
+from agent.linear_flow.utils import add_message
 
 client = OpenAI(
         timeout=10,      # seconds, pick what you like
@@ -60,9 +61,7 @@ def planner_llm(state: LinearAgentState) -> LinearAgentState:
                 # Fallback: no tools, simple error/clarification message
                 state["actions"] = []
                 state["followup_message"] = "משהו השתבש, נסה לנסח שוב."
-                state.setdefault("messages", []).append(
-                    {"role": "assistant", "content": state["followup_message"]}
-                )
+                add_message("assistant", state["followup_message"], state)
                 state["status"] = "error"
                 # You can also log `e` somewhere
                 mark_error(e, kind="LLMError", span=_gen)

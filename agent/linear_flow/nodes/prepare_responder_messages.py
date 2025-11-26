@@ -4,6 +4,7 @@ from typing import Callable, Dict, Any
 from agent.linear_flow.state import LinearAgentState
 from observability.obs import span_step, safe_update_current_span_io
 
+
 def make_prepare_responder_messages_node(
     responder_system_prompt: str,
 ) -> Callable[[LinearAgentState], LinearAgentState]:
@@ -11,7 +12,7 @@ def make_prepare_responder_messages_node(
     Build llm_messages for the responder LLM:
     - responder-specific system prompt
     - context + tool_results as JSON
-    - chat history (messages)
+    - chat history (messages) for the CURRENT target_agent only
     """
 
     def prepare_responder_messages(state: LinearAgentState) -> LinearAgentState:
@@ -22,7 +23,25 @@ def make_prepare_responder_messages_node(
         ):
             context: Dict[str, Any] = state.get("context") or {}
             tool_results = state.get("tool_results", [])
-            history = state.get("messages") or []
+
+            target_agent = state.get("target_agent")
+            if not target_agent:
+                raise ValueError(
+                    "prepare_responder_messages: state['target_agent'] is not set"
+                )
+
+            all_history = state.get("messages") or []
+
+            # Only user/assistant messages for this target_agent
+            history = [
+                m
+                for m in all_history
+                if m.get("target_agent") == target_agent
+                and m.get("role") in ("user", "assistant")
+            ]
+
+            # (optional) truncate per-agent history:
+            # history = history[-10:]
 
             messages = []
 
@@ -58,7 +77,7 @@ def make_prepare_responder_messages_node(
                 }
             )
 
-            # 3) Chat history (user/assistant)
+            # 3) Agent-specific chat history
             messages.extend(history)
 
             state["llm_messages"] = messages

@@ -4,6 +4,7 @@ from openai import OpenAI, APIError, BadRequestError, APITimeoutError
 from agent.linear_flow.state import LinearAgentState
 from agent.linear_flow.models import LinearAgentResponse
 from observability.obs import span_step, safe_update_current_span_io, mark_error
+from agent.linear_flow.utils import add_message
 
 client = OpenAI(timeout=10, max_retries=1)
 model = "gpt-4o"
@@ -21,7 +22,7 @@ def responder_llm(state: LinearAgentState) -> LinearAgentState:
             llm_messages = state.get("llm_messages", [])
 
             safe_update_current_span_io(
-                input={"messages": llm_messages},
+                input={"llm_messages": llm_messages},
                 redact=True,
             )
 
@@ -56,16 +57,12 @@ def responder_llm(state: LinearAgentState) -> LinearAgentState:
                 )
 
                 state["response"] = parsed.response
-                state.setdefault("messages", []).append(
-                    {"role": "assistant", "content": parsed.response}
-                )
+                add_message("assistant", parsed.response, state)
 
             except (APITimeoutError, APIError, BadRequestError) as e:
                 fallback = "משהו השתבש, נסה לנסח שוב."
                 state["response"] = fallback
-                state.setdefault("messages", []).append(
-                    {"role": "assistant", "content": fallback}
-                )
+                add_message("assistant", fallback, state)
                 state["status"] = "error"
                 mark_error(e, kind="LLMError", span=_gen)
 
