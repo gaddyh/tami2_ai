@@ -25,4 +25,4 @@ tools = ToolRegistry(
 )
 
 tools_reference = build_tools_reference(tools)
-print("Tools reference:\n", tools_reference)
+#print("Tools reference:\n", tools_reference)

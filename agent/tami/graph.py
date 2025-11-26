@@ -18,20 +18,30 @@ def postprocess_node(state: LinearAgentState) -> LinearAgentState:
 
 from typing import Optional, Dict, Any
 
+from typing import Any, Dict, Optional
+from langgraph.types import Command, Interrupt
+
+
 def handle_tami_turn(
     app,
     thread_id: str,
     user_message: Any,
     base_state: Optional[Dict[str, Any]] = None,
-):
+) -> Dict[str, Any]:
     """
-    base_state: whatever you currently pass as `state` on a fresh turn
-                (e.g. {"project": "tami", "context": {...}}).
+    Returns:
+        {
+          "status": "interrupt" | "ok",
+          "interrupt": Interrupt | None,
+          "interrupts": tuple[Interrupt, ...] | None,
+          "state": dict | None,
+        }
     """
 
     config = {"configurable": {"thread_id": thread_id}}
     snapshot = app.get_state(config)
 
+    # Pending interrupts from a previous run?
     interrupts: tuple[Interrupt, ...] = ()
     if snapshot is not None:
         interrupts = getattr(snapshot, "interrupts", ()) or ()
@@ -39,23 +49,40 @@ def handle_tami_turn(
     # 1) We are in the middle of a followup -> RESUME
     if interrupts:
         intr = interrupts[0]
-        # Optional: assert it's our followup interrupt
-        # if intr.value.get("type") != "followup": ...
-
-        # Match your `handle_followup` contract: answer is a dict with "content"
         resume_value = {"content": str(user_message)}
-        return app.invoke(Command(resume=resume_value), config=config)
+        result = app.invoke(Command(resume=resume_value), config=config)
+    else:
+        # 2) Fresh turn -> start with full state object
+        state: Dict[str, Any] = dict(base_state or {})
+        state["input_text"] = str(user_message)
+        result = app.invoke(state, config=config)
 
-    # 2) Fresh turn -> start with full state object
-    state: Dict[str, Any] = dict(base_state or {})
-    # whatever your graph expects as input
-    state["input_text"] = str(user_message)
+    # -------------------------------------------------
+    # Normalize return: interrupt vs plain state
+    # -------------------------------------------------
+    if isinstance(result, dict) and result.get("__interrupt__"):
+        # Get the latest interrupts from checkpoint
+        snapshot = app.get_state(config)
+        interrupts = ()
+        if snapshot is not None:
+            interrupts = getattr(snapshot, "interrupts", ()) or ()
+        intr = interrupts[0] if interrupts else None
 
-    # If you also want to seed messages/llm_messages here, you can:
-    # state.setdefault("messages", []).append({"role": "user", "content": state["input_text"]})
-    # state.setdefault("llm_messages", []).append({"role": "user", "content": state["input_text"]})
+        return {
+            "status": "interrupt",
+            "interrupt": intr,
+            "interrupts": interrupts,
+            "state": None,
+        }
 
-    return app.invoke(state, config=config)
+    # Plain state
+    return {
+        "status": "ok",
+        "interrupt": None,
+        "interrupts": None,
+        "state": result,
+    }
+
 
 def build_tami_router_app():
     # Get uncompiled graphs

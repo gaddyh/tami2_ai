@@ -47,7 +47,7 @@ def planner_llm(state: LinearAgentState) -> LinearAgentState:
                 # optional debug:
                 print(f"LLM parse took {elapsed:.2f}s")
 
-                print("llm messages:", state["llm_messages"])
+                #print("llm messages:", state["llm_messages"])
                 print("LLM response:", resp)
                 plan = LinearAgentPlan.model_validate_json(resp.choices[0].message.content)
 
