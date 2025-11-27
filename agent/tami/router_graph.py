@@ -49,6 +49,8 @@ def route_node(state: LinearAgentState) -> LinearAgentState:
     """
     text = state.get("input_text", "") or ""
 
+
+    #print(f"Routing: current_datetime={state.get('context', {}).get('current_datetime', '')}")
     target = llm_route(text)
     state["target_agent"] = target
 

@@ -21,8 +21,14 @@ from typing import Optional, Dict, Any
 from typing import Any, Dict, Optional
 from langgraph.types import Command, Interrupt
 
+from observability.obs import span_step
 
-def handle_tami_turn(
+def handle_tami_turn(app, thread_id, user_message, base_state=None):
+    with span_step("tami_turn", kind="agent_turn"):
+        return _handle_tami_turn_internal(app, thread_id, user_message, base_state)
+
+
+def _handle_tami_turn_internal(
     app,
     thread_id: str,
     user_message: Any,

@@ -10,10 +10,11 @@ from evaluation.evaluators import (
 
 langfuse = get_client()
 
-dataset = langfuse.get_dataset("linear-tami")
+#dataset = langfuse.get_dataset("linear-tami")
+dataset = langfuse.get_dataset("linear_tami2")
 
 result = dataset.run_experiment(
-    name="linear-tami-eval",
+    name="linear_tami2_eval",
     description="Replay Linear Tami on multi-turn dataset",
     task=tami_router_task,
     evaluators=[
@@ -23,7 +24,7 @@ result = dataset.run_experiment(
         time_semantics_evaluator,
         overall_evaluator,
     ],
-    metadata={"app": "linear-tami", "variant": "v1"},
+    metadata={"app": "linear_tami2", "variant": "v1"},
 )
 
 print(result.format(include_item_results=True))

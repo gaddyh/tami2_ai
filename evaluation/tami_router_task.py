@@ -8,6 +8,8 @@ from datetime import datetime
 import time
 import json
 import uuid
+from shared import time as shared_time
+
 
 # Build router app once per worker
 app = build_tami_router_app()
@@ -54,6 +56,9 @@ async def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
     # -----------------------------
     # Build base LinearAgentState
     # -----------------------------
+    now = shared_time.to_user_timezone(inp.current_datetime, inp.tz)
+    iso_with_weekday = f"{now.isoformat()} ({now.strftime('%A')})"
+
     state: LinearAgentState = {
         "input_text": inp.text,
         "context": {
@@ -72,7 +77,7 @@ async def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
             "reply": inp.reply,
             "locale": inp.locale,
             "tz": inp.tz,
-            "current_datetime": to_iso(inp.current_datetime),
+            "current_datetime": inp.current_datetime,
             "received_at": to_iso(inp.received_at),
             "redacted": inp.redacted,
         },
@@ -81,8 +86,11 @@ async def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
     # -----------------------------
     # Run REAL Tami turn
     # -----------------------------
+    start = time.time()
     result = handle_tami_turn(app, inp.thread_id, inp.text, base_state=state)
     graph_state = result.get("state") or {}
+    end = time.time()
+    print(f"Tami turn took {end - start:.2f}s\n\n")
 
     # -----------------------------
     # 1) Try planner_output (old shape)

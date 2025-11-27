@@ -45,16 +45,29 @@ def _to_utc(dt: Optional[datetime], user_tz: ZoneInfo) -> Optional[datetime]:
     return dt.astimezone(timezone.utc)
 
 
-def to_user_timezone(dt: datetime, tz_name: str | None = "Asia/Jerusalem") -> datetime:
-    """Return a tz-aware datetime in the user's timezone (fallback UTC)."""
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+def to_user_timezone(dt: str | datetime, tz_name: str | None = "Asia/Jerusalem") -> datetime:
+    # Accept ISO string as well
+    if isinstance(dt, str):
+        s = dt
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+
+    # From here on, dt is definitely a datetime
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
+
     try:
         tz = ZoneInfo(tz_name) if tz_name else timezone.utc
     except ZoneInfoNotFoundError:
         logger.warning("Timezone %s not found. Using UTC fallback.", tz_name)
         tz = timezone.utc
+
     return dt.astimezone(tz)
+
 
 def now_iso_in_tz(tz_name: str | None) -> str:
     """Convenience: current time in tz, ISO 8601 with offset."""
