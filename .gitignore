@@ -6,6 +6,7 @@ __init__.py
 # C extensions
 *.so
 
+eval_results/
 tami_graph.db*
 
 .venv/

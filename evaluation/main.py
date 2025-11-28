@@ -1,32 +1,16 @@
 from langfuse import get_client
-from evaluation.tami_router_task import tami_router_task
-from evaluation.evaluators import (
-    schema_valid_evaluator,
-    tool_match_evaluator,
-    args_match_evaluator,
-    time_semantics_evaluator,
-    overall_evaluator,
-)
+from evaluation.runner import run_one_item_with_validators
+from evaluation.utility import write_result_to_pretty_json_per_item
 
 langfuse = get_client()
-
-#dataset = langfuse.get_dataset("linear-tami")
 dataset = langfuse.get_dataset("linear_tami2")
 
-result = dataset.run_experiment(
-    name="linear_tami2_eval",
-    description="Replay Linear Tami on multi-turn dataset",
-    task=tami_router_task,
-    evaluators=[
-        schema_valid_evaluator,
-        tool_match_evaluator,
-        args_match_evaluator,
-        time_semantics_evaluator,
-        overall_evaluator,
-    ],
-    metadata={"app": "linear_tami2", "variant": "v1"},
-)
+# items is a list, no parentheses
+items = dataset.items
 
-print(result.format(include_item_results=True))
-#print(result.format())
+# Pick one
+item = items[0]
+for item in items:
+    result = run_one_item_with_validators(item)
+    write_result_to_pretty_json_per_item(result)
 

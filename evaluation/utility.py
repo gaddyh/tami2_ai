@@ -171,3 +171,51 @@ def extract_tool_call_from_turn(turn: Any) -> Optional[Dict[str, Any]]:
         return {"tool": tool, "args": payload.get("args", {})}
 
     return None
+
+import json
+from datetime import datetime
+from typing import Dict, Any
+
+
+def evaluation_to_dict(ev) -> Dict[str, Any]:
+    """Convert langfuse.Evaluation → plain dict."""
+    return {
+        "name": ev.name,
+        "value": ev.value,
+        "comment": ev.comment,
+        "timestamp": getattr(ev, "timestamp", None),
+        "metadata": getattr(ev, "metadata", None),
+    }
+
+import os
+
+def write_result_to_pretty_json_per_item(result: dict, dirpath: str = "eval_results") -> str:
+    """
+    Writes one evaluation result to eval_results/<item_id>.json (pretty-printed).
+    Creates the directory if needed.
+    Returns the path used.
+    """
+    os.makedirs(dirpath, exist_ok=True)
+
+    item_id = result["item_id"] or "unknown_item"
+    safe_id = item_id.replace("/", "_")
+    filepath = os.path.join(dirpath, f"{safe_id}.json")
+
+    evals = {
+        name: evaluation_to_dict(ev)
+        for name, ev in result["evaluations"].items()
+    }
+
+    entry = {
+        "item_id": result["item_id"],
+        "input": result["input"],
+        "expected_output": result["expected_output"],
+        "task_result": result["task_result"],
+        "evaluations": evals,
+    }
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(entry, f, ensure_ascii=False, indent=2)
+
+    print(f"\nWrote pretty JSON → {filepath}")
+    return filepath

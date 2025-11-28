@@ -48,7 +48,7 @@ def extract_tool_plan_from_response(res: dict) -> list[dict]:
 
 EVAL_RUN_ID = uuid.uuid4().hex
 
-async def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
+def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
     raw = item.input
     in_data = raw.get("in", {})
     inp = In(**in_data)
