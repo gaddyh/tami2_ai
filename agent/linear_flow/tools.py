@@ -88,6 +88,43 @@ from models.base_item import BaseActionItem
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
+from typing import get_origin, get_args, Union
+from pydantic import BaseModel
+
+def _unwrap_model_type(field_type) -> Optional[type[BaseModel]]:
+    """
+    Try to find a nested Pydantic model type inside field_type.
+    Handles:
+      - Recurrence
+      - Optional[Recurrence]
+      - List[Participant]
+      - List[Optional[Reminder]]
+      - Union[Recurrence, None]
+    Returns the first BaseModel subclass it finds, or None.
+    """
+    origin = get_origin(field_type)
+
+    # Optional[...] / Union[..., None]
+    if origin is Union:
+        for arg in get_args(field_type):
+            if arg is type(None):
+                continue
+            m = _unwrap_model_type(arg)
+            if m is not None:
+                return m
+        return None
+
+    # List[...] or list[...]
+    if origin in (list, List):
+        inner = get_args(field_type)[0]
+        return _unwrap_model_type(inner)
+
+    # Direct model class
+    if isinstance(field_type, type) and issubclass(field_type, BaseModel):
+        return field_type
+
+    return None
+
 def render_tool_reference(
     tool_name: str,
     description: str,
@@ -103,13 +140,15 @@ def render_tool_reference(
 
     all_fields = _collect_fields(args_model)
 
+    # collect nested models so we can document them after the main field list
+    nested_models: list[tuple[str, type[BaseModel]]] = []
+
     for field_name, field_info in all_fields.items():
         ftype = _extract_type(field_info.annotation)
         default_val = field_info.default
 
         # pydantic v2: required fields have default PydanticUndefined
         is_required = default_val is PydanticUndefined
-
         req_label = "required" if is_required else "optional"
 
         default_text = ""
@@ -121,23 +160,49 @@ def render_tool_reference(
         if field_info.description:
             lines.append(f"      {field_info.description}")
 
+        # NEW: detect nested Pydantic models for extra docs
+        model_type = _unwrap_model_type(field_info.annotation)
+        if model_type is not None:
+            nested_models.append((field_name, model_type))
+
     # -------------------------------------------------
     # Conditional domain rules for BaseActionItem tools
     # -------------------------------------------------
     if issubclass(args_model, BaseActionItem):
         lines.append("Notes:")
         lines.append(
-            "  - When command == \"create\": item_id must be null / omitted."
+            '  - When command == "create": item_id must be null / omitted.'
         )
         lines.append(
-            "  - When command == \"update\" or \"delete\": item_id must be provided."
+            '  - When command == "update" or "delete": item_id must be provided.'
         )
         lines.append(
-            "  - item_type must match the specific tool (e.g. \"task\" for process_task)."
+            '  - item_type must match the specific tool (e.g. "task" for process_task).'
         )
+
+    # NEW: nested model details
+    for parent_name, model_type in nested_models:
+        lines.append(f"      Nested object '{parent_name}' → {model_type.__name__} fields:")
+        sub_fields = _collect_fields(model_type)
+        for sub_name, sub_info in sub_fields.items():
+            sub_type = _extract_type(sub_info.annotation)
+            sub_default = sub_info.default
+            sub_required = sub_default is PydanticUndefined
+            sub_req_label = "required" if sub_required else "optional"
+
+            sub_default_text = ""
+            if (sub_default is not PydanticUndefined) and (sub_default is not None):
+                sub_default_text = f", default={sub_default!r}"
+
+            lines.append(
+                f"        - {sub_name}: ({sub_type}, {sub_req_label}{sub_default_text})"
+            )
+            if sub_info.description:
+                lines.append(f"          {sub_info.description}")
 
     lines.append("-" * 40)
     return "\n".join(lines)
+
 
 def build_tools_reference(tool_registry) -> str:
     blocks = []

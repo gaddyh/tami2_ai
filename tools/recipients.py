@@ -30,6 +30,15 @@ def _best_chat_id(phone: str | None) -> str | None:
     return phone if phone.endswith("@c.us") else f"{phone}@c.us"
 
 def _get_candidate_recipient_info(user_id: str, name: str, limit: int = 8):
+    """
+    Returns: name, candidates, count, ts:
+    {
+        "name": raw_query,
+        "candidates": [cand][:limit],
+        "count": 1,
+        "ts": now_iso(),
+    }
+    """
     from shared.user import get_user
 
     def _rec_kind_and_ids(rec: dict[str, str]) -> tuple[str, str | None, str | None, str | None]:
