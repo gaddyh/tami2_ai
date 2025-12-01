@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Optional
-from tools.base import function_tool, span_attrs, mark_error, summarize, now_iso, _ok, _fail
+from tools.base import span_attrs, mark_error, summarize, now_iso, _ok, _fail
 from models.app_context import AppCtx
 from shared.user import get_user
-from agents import RunContextWrapper
 from store.scheduled_messages_store import ScheduledMessageStore
 from models.scheduled_message import ScheduledMessageItem
 from shared.time import _parse_iso8601, _to_utc, _user_tz
@@ -11,7 +10,7 @@ from store.user import UserStore
 from shared.user import userContextDict, normalize_recipient_id
 from observability.obs import instrument_io
 
-def _process_contact_message(ctx: RunContextWrapper[AppCtx],action: ScheduledMessageItem) -> dict:
+def _process_contact_message(ctx: AppCtx, action: ScheduledMessageItem) -> dict:
     """
     Process a scheduled message to a contact by chat ID.
     For recipient_chat_id you can pass either:
@@ -81,7 +80,6 @@ def _process_contact_message(ctx: RunContextWrapper[AppCtx],action: ScheduledMes
     except Exception as e:
         mark_error(e, kind="ToolError.process_contact_message", span=s); raise
 
-@function_tool(strict_mode=True)
 @instrument_io(
     name="tool.process_contact_message",
     meta={"agent": "tami", "operation": "tool", "tool": "process_contact_message", "schema": "ProcessContactMessage.v1"},

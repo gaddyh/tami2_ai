@@ -5,7 +5,7 @@ from langgraph.graph import StateGraph, END
 from agent.confirmation_flow.state import ConfirmationState
 
 from agent.confirmation_flow.nodes.entry_node import confirmation_entry
-from agent.confirmation_flow.nodes.prepare_initial_llm_node import make_prepare_initial_llm_node
+from agent.confirmation_flow.nodes.prepare_initial_llm_node import make_prepare_initial_llm
 from agent.confirmation_flow.nodes.resolve_initial_llm_node import resolve_initial_llm
 from agent.confirmation_flow.nodes.ask_user_node import ask_user_node
 from agent.confirmation_flow.nodes.prepare_final_llm_node import make_prepare_final_llm_node
@@ -62,7 +62,7 @@ def build_confirmation_flow_app(
     builder.add_node("entry", confirmation_entry)
     builder.add_node(
         "prepare_initial_llm",
-        make_prepare_initial_llm_node(initial_system_prompt),
+        make_prepare_initial_llm(initial_system_prompt),
     )
     builder.add_node("resolve_initial_llm", resolve_initial_llm)
     builder.add_node("ask_user", ask_user_node)

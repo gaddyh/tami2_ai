@@ -7,9 +7,29 @@ from pydantic import BaseModel  # <-- add this
 from models.reminder_item import ReminderItem
 from models.task_item import TaskItem, BulkTasksAction
 from models.get_query import GetItemsQuery
-from tools.recipients import _get_candidates_recipient_info
 
+# -------------------------------------------------
+# In-memory demo DB: project → per-project store
+# -------------------------------------------------
+# We keep tasks/reminders as before and add messages/chat_history/contacts
 DB: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+
+
+def _project_store(state: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    """Return the per-project store (tasks/reminders/...) from the global DB."""
+    project = state.get("project") or "default"
+    store = DB.setdefault(
+        project,
+        {
+            "tasks": [],
+            "reminders": [],
+            "messages": [],       # for scheduled/queued messages
+            "chat_history": [],   # fake chat history for search
+            "contacts": [],       # fake contacts for recipient candidates
+        },
+    )
+    return store
+
 
 def _now_iso() -> str:
     return datetime.now().isoformat()
@@ -40,16 +60,7 @@ def _as_reminder_item(args: ReminderItem | Dict[str, Any]) -> ReminderItem:
         return args
     return ReminderItem(**args)
 
-def _project_store(state: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Return the per-project store (tasks/reminders/events) from the global DB.
-    Ensures all three lists exist.
-    """
-    project = state.get("project") or "default"
-    store = DB.setdefault(project, {"tasks": [], "reminders": [], "events": []})
-    # In case an older version created this without 'events'
-    store.setdefault("events", [])
-    return store
+
 # =================================================
 #  COMMS TOOLS — DUMMY IMPLEMENTATIONS FOR TESTING
 # =================================================
@@ -58,40 +69,110 @@ def get_candidates_recipient_info(
     args: Dict[str, Any],
     state: Dict[str, Any],
 ) -> Dict[str, Any]:
-    print("get_candidates_recipient_info state", state)
-    print("get_candidates_recipient_info args", args)
+    """
+    Dummy recipient lookup.
 
-    ctx = state.get("context")
-    if not ctx:
-        raise ValueError("ctx not found in state")
+    - Uses a small in-memory 'contacts' list per project.
+    - Optionally filters by a hint found in state (recipient_name / context).
+    - Returns a candidates list similar to what your interrupt chooser expects.
+    """
+    store = _project_store(state)
 
-    user_id = ctx.get("user_id")
-    if not user_id:
-        raise ValueError("user_id not found in ctx")
+    # Seed fake contacts once
+    if not store["contacts"]:
+        store["contacts"].extend(
+            [
+                {
+                    "name": "אמא",
+                    "chat_id": "972500000001@c.us",
+                    "type": "family",
+                },
+                {
+                    "name": "מיכל",
+                    "chat_id": "972500000002@c.us",
+                    "type": "friend",
+                },
+                {
+                    "name": "גל",
+                    "chat_id": "972500000003@c.us",
+                    "type": "work",
+                },
+            ]
+        )
 
-    # --------------------------
-    # Extract raw query STRING
-    # --------------------------
-    raw_name = args.get("name") or args.get("name_hint") or ""
-    if not isinstance(raw_name, str):
-        raise ValueError(f"get_candidates_recipient_info expected string for name/name_hint, got {type(raw_name)}")
-
-    # --------------------------
-    # Call the real resolver
-    # --------------------------
-    return _get_candidates_recipient_info(
-        user_id=user_id,
-        name=raw_name,
+    # Try to infer a hint from state
+    hint = (
+        state.get("recipient_name")
+        or state.get("context", {}).get("recipient_name")
+        or state.get("context", {}).get("recipient_hint")
+        or state.get("input_text")
+        or ""
     )
+
+    candidates = store["contacts"]
+    if hint:
+        h = hint.casefold()
+        filtered = [
+            c for c in candidates
+            if h in c["name"].casefold()
+        ]
+        if filtered:
+            candidates = filtered
+
+    # Add a naive score just to make the shape richer
+    for c in candidates:
+        c.setdefault("score", 0.9 if hint and hint in c["name"] else 0.5)
+
+    return {
+        "status": "ok",
+        "hint": hint,
+        "candidates": candidates,
+        "count": len(candidates),
+    }
 
 
 def process_scheduled_message(
     args: Dict[str, Any],
     state: Dict[str, Any],
 ) -> Dict[str, Any]:
+    """
+    Dummy scheduled-message processor.
+
+    - Looks at store["messages"].
+    - Treats messages with:
+        status == "pending" and scheduled_at <= now
+      as 'due'.
+    - Marks them as 'sent' and sets sent_at.
+    """
+    store = _project_store(state)
+    messages = store["messages"]
+
+    now = datetime.now()
+    processed_ids: List[str] = []
+
+    for m in messages:
+        if m.get("status") != "pending":
+            continue
+
+        scheduled_at = m.get("scheduled_at")
+        if not scheduled_at:
+            continue
+
+        try:
+            when = datetime.fromisoformat(scheduled_at)
+        except Exception:
+            # ignore malformed dates in dummy
+            continue
+
+        if when <= now:
+            m["status"] = "sent"
+            m["sent_at"] = _now_iso()
+            processed_ids.append(m.get("item_id") or "")
+
     return {
         "status": "ok",
-        "item_id": "sdfsdfssdfsdfTEST",
+        "processed_count": len(processed_ids),
+        "processed_ids": processed_ids,
     }
 
 

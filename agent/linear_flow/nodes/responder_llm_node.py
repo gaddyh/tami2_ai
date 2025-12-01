@@ -29,7 +29,7 @@ def responder_llm(state: LinearAgentState) -> LinearAgentState:
             start = time.time()
             try:
                 schema = LinearAgentResponse.model_json_schema()
-                #print("llm_messages:", llm_messages)
+
                 resp = client.chat.completions.create(
                     model=model,
                     messages=llm_messages,
@@ -51,17 +51,22 @@ def responder_llm(state: LinearAgentState) -> LinearAgentState:
                     resp.choices[0].message.content
                 )
 
+                # Log parsed output (response OR followup_message)
                 safe_update_current_span_io(
                     output=parsed.model_dump(),
                     redact=True,
                 )
 
+                # Normalize into state:
+                # Normal final answer
                 state["response"] = parsed.response
+                state["is_followup_question"] = parsed.is_followup_question
                 add_message("assistant", parsed.response, state)
 
             except (APITimeoutError, APIError, BadRequestError) as e:
                 fallback = "משהו השתבש, נסה לנסח שוב."
                 state["response"] = fallback
+                state["is_followup_question"] = False
                 add_message("assistant", fallback, state)
                 state["status"] = "error"
                 mark_error(e, kind="LLMError", span=_gen)

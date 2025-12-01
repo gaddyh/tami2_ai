@@ -10,8 +10,11 @@ class LinearAgentState(TypedDict, total=False):
     
     actions: List[Dict[str, Any]]
     followup_message: Optional[str]
+    is_followup_question: Optional[bool]
 
     response: Optional[str]
 
     target_agent: Optional[str]
+    needs_person_resolution: Optional[bool]
+    person_resolution_items: Optional[List[Dict[str, Any]]]
     

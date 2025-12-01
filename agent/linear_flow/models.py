@@ -28,16 +28,13 @@ class LinearAgentPlan(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-# linear_flow/models.py
-from pydantic import BaseModel, Field
+# agent/linear_flow/models.py  (or wherever LinearAgentResponse lives)
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 class LinearAgentResponse(BaseModel):
-    """
-    Final response the runtime expects from the responder LLM.
-    """
-    response: str = Field(
-        ...,
-        description="Hebrew final user-facing message.",
-    )
+    response: str
+    is_followup_question: bool = Field(False, description="Set to True if the response is a followup question.")
+    
 
-    model_config = {"extra": "forbid"}
+    model_config = ConfigDict(extra="forbid")

@@ -6,9 +6,8 @@ def now_iso() -> str:
 
 from rapidfuzz import fuzz
 import unicodedata
-from agents import RunContextWrapper
 from models.app_context import AppCtx
-from tools.base import function_tool, span_attrs, mark_error, summarize
+from tools.base import span_attrs, mark_error, summarize
 from observability.obs import instrument_io
 import unicodedata
 from rapidfuzz import fuzz
@@ -29,7 +28,7 @@ def _best_chat_id(phone: str | None) -> str | None:
         return None
     return phone if phone.endswith("@c.us") else f"{phone}@c.us"
 
-def _get_candidate_recipient_info(user_id: str, name: str, limit: int = 8):
+def _get_candidates_recipient_info(user_id: str, name: str, limit: int = 8):
     """
     Returns: name, candidates, count, ts:
     {
@@ -90,17 +89,30 @@ def _get_candidate_recipient_info(user_id: str, name: str, limit: int = 8):
 
     raw_query = name.strip()
     norm_query = _normalize_name(raw_query)
+    
+    # optional: guard empty query
+    if not norm_query:
+        return {
+            "name": raw_query,
+            "candidates": [],
+            "count": 0,
+            "ts": now_iso(),
+        }
 
-    # ---------- 1) EXACT MATCH ----------
-    for display_name, rec in contacts.items():
-        if _normalize_name(display_name) == norm_query:
-            cand = _mk_candidate(display_name, rec, score=1.0)
-            return {
-                "name": raw_query,
-                "candidates": [cand][:limit],
-                "count": 1,
-                "ts": now_iso(),
-            }
+    is_multiword = len(norm_query.split()) >= 2
+
+    # ---------- 1) EXACT MATCH (only if >= 2 words) ----------
+    if is_multiword:
+        # ---------- 1) EXACT MATCH ----------
+        for display_name, rec in contacts.items():
+            if _normalize_name(display_name) == norm_query:
+                cand = _mk_candidate(display_name, rec, score=1.0)
+                return {
+                    "name": raw_query,
+                    "candidates": [cand][:limit],
+                    "count": 1,
+                    "ts": now_iso(),
+                }
 
     # ---------- 2) SUBSTRING MATCH (if any → NO fuzzy) ----------
     substring_hits: list[dict] = []
@@ -170,7 +182,6 @@ def _get_candidate_recipient_info(user_id: str, name: str, limit: int = 8):
     }
 
 
-@function_tool(strict_mode=True)
 @instrument_io(
     name="tool.get_candidates_recipient_info",
     meta={"agent": "tami", "operation": "tool", "tool": "get_candidates_recipient_info", "schema": "ReminderItem.v1"},
@@ -178,7 +189,7 @@ def _get_candidate_recipient_info(user_id: str, name: str, limit: int = 8):
     output_fn=summarize,
     redact=True,
 )
-def get_candidates_recipient_info(ctx: RunContextWrapper[AppCtx], name: str, include_email_for_event_invite: bool = False):
+def get_candidates_recipient_infoXXX(ctx: AppCtx, name: str, include_email_for_event_invite: bool = False):
     masked = name[:2] + "…" if name else ""
     with span_attrs("tool.get_candidates_recipient_info", agent="tami", operation="tool", tool="get_candidates_recipient_info") as s:
         s.update(input={"name_len": len(name or ""), "name_preview": masked})

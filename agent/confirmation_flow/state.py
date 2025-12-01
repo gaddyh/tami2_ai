@@ -29,4 +29,17 @@ class ConfirmationState(TypedDict, total=False):
 
     selected_item: Optional[Dict[str, Any]]
 
-    llm_messages: Optional[List[Dict[str, Any]]]
+    input_text: str
+    context: Dict[str, Any]
+    
+    llm_messages: List[Dict[str, Any]]
+    messages: List[Dict[str, Any]]
+    
+    actions: List[Dict[str, Any]]
+    followup_message: Optional[str]
+
+    response: Optional[str]
+
+    target_agent: Optional[str]
+    needs_person_resolution: Optional[bool]
+    person_resolution_items: Optional[List[Dict[str, Any]]]

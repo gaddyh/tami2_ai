@@ -40,13 +40,17 @@ def extract_tool_plan_from_response(res: dict) -> list[dict]:
         tool_name = a.get("tool")
         if not tool_name:
             continue
-        tool_plan.append({
-            "tool": tool_name,
-            "args": a.get("args") or {},
-        })
+        tool_plan.append(
+            {
+                "tool": tool_name,
+                "args": a.get("args") or {},
+            }
+        )
     return tool_plan
 
+
 EVAL_RUN_ID = uuid.uuid4().hex
+
 
 def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
     raw = item.input
@@ -64,7 +68,7 @@ def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
         "context": {
             "user_id": inp.user_id,
             "user_name": inp.user_name,
-            "thread_id": EVAL_RUN_ID,
+            "thread_id": inp.user_id,
             "chat_id": inp.chat_id,
             "source": inp.source,
             "category": inp.category,
@@ -88,37 +92,73 @@ def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
     # -----------------------------
     start = time.time()
     result = handle_tami_turn(app, inp.thread_id, inp.text, base_state=state)
-    graph_state = result.get("state") or {}
     end = time.time()
     print(f"Tami turn took {end - start:.2f}s\n\n")
 
-    # -----------------------------
-    # 1) Try planner_output (old shape)
-    # -----------------------------
-    tool_plan: list[dict] = []
-    actions = []
-    followup_msg = ""
+    graph_state = result.get("state") or {}
+    print("=== Tami Turn Output ===")
+    print("graph_state:", graph_state)
+    print("result:", result)
 
-    planner = graph_state.get("planner_output")
-    if isinstance(planner, dict):
-        actions = planner.get("actions") or []
-        followup_msg = planner.get("followup_message") or ""
+    status = result.get("status")
 
     # -----------------------------
-    # 2) If no actions, derive from context.tools.latest
+    # TOOL METADATA (for plan + debug)
     # -----------------------------
-    if not actions:
-        ctx = graph_state.get("context") or {}
-        tools_meta = ctx.get("tools") or {}
+    ctx = graph_state.get("context") or {}
+    tools_meta = ctx.get("tools") or {}
+
+    print("=== Tool Results ===")
+    if not tools_meta:
+        print("(no tools metadata)")
+    else:
         for tool_name, meta in tools_meta.items():
             if not isinstance(meta, dict):
                 continue
             latest = meta.get("latest")
-            if not isinstance(latest, dict):
+            last_error = meta.get("last_error")
+            print(f"- {tool_name}:")
+            if isinstance(latest, dict):
+                print("  latest args:", latest.get("args"))
+                print("  latest result:", latest.get("result"))
+                print("  latest error:", latest.get("error"))
+            if isinstance(last_error, dict):
+                print("  last_error args:", last_error.get("args"))
+                print("  last_error result:", last_error.get("result"))
+                print("  last_error error:", last_error.get("error"))
+
+    # -----------------------------
+    # TOOL PLAN (best-effort)
+    # -----------------------------
+    tool_plan: list[dict] = []
+    actions: list[dict] = []
+
+    planner = graph_state.get("planner_output")
+    if isinstance(planner, dict):
+        actions = planner.get("actions") or []
+
+    if not actions:
+        # Derive from tools metadata: prefer latest, fall back to last_error
+        for tool_name, meta in tools_meta.items():
+            if not isinstance(meta, dict):
                 continue
-            args = latest.get("args") or {}
+
+            latest = meta.get("latest")
+            last_error = meta.get("last_error")
+
+            rec = None
+            if isinstance(latest, dict):
+                rec = latest
+            elif isinstance(last_error, dict):
+                rec = last_error
+
+            if not rec:
+                continue
+
+            args = rec.get("args") or {}
             tool_plan.append({"tool": tool_name, "args": args})
     else:
+        # Planner explicitly gave us actions
         for a in actions:
             if not isinstance(a, dict):
                 continue
@@ -128,13 +168,32 @@ def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
             tool_plan.append({"tool": tool, "args": a.get("args") or {}})
 
     # -----------------------------
-    # Assistant message
+    # Assistant message (response / followup)
     # -----------------------------
-    if not followup_msg:
-        followup_msg = graph_state.get("response") or ""
+    response = None
+    followup = None
+
+    if status == "ok":
+        # Normal completed turn: read from graph_state
+        response = graph_state.get("response")
+        followup = graph_state.get("followup_message")
+    elif status == "interrupt":
+        # Followup interrupt: question lives on the Interrupt payload
+        intr = result.get("interrupt")
+        if intr is not None:
+            value = getattr(intr, "value", {}) or {}
+            followup = value.get("question")
+
+    if followup:
+        assistant_message = f"[FOLLOWUP] {followup}"
+    else:
+        assistant_message = response or ""
+
+    print("=== Responder Output ===")
+    print("response:", response)
+    print("followup_message:", followup)
 
     return {
         "tool_plan": tool_plan,
-        "assistant_message": followup_msg,
+        "assistant_message": assistant_message,
     }
-

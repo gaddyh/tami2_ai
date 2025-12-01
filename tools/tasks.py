@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Any, Dict
-from tools.base import function_tool, span_attrs, mark_error, summarize, now_iso
+from tools.base import span_attrs, mark_error, summarize
 from models.task_item import BulkTasksAction, TaskItem
 from store.task_item_store import TaskStore
-from agents import RunContextWrapper
 from models.app_context import AppCtx
 Json = Dict[str, Any]
 from observability.obs import instrument_io
@@ -191,7 +190,6 @@ def _process_tasks(ctx: RunContextWrapper[AppCtx], action: BulkTasksAction) -> d
         }
 
 
-@function_tool(strict_mode=True)
 @instrument_io(
     name="tool.process_tasks",
     meta={"agent": "tami", "operation": "tool", "tool": "process_tasks", "schema": "BulkTasksAction.v1"},

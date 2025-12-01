@@ -3,7 +3,8 @@
 from typing import Dict, Any
 from agent.linear_flow.graph import build_agent_app
 from agent.tami.comms.tool_registery import tools_reference, tools
-from agent.tami.comms.prompt import COMMS_RESPONDER_SYSTEM_PROMPT, COMMS_PLANNER_SYSTEM_PROMPT
+from agent.tami.comms.prompt_planner import COMMS_PLANNER_SYSTEM_PROMPT
+from agent.tami.comms.prompt_responder import COMMS_RESPONDER_SYSTEM_PROMPT
 from observability.obs import instrument
 from datetime import datetime
 from models.input import In

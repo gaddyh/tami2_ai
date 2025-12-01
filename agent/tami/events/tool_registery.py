@@ -9,8 +9,12 @@ from agent.tami.events.tools import (
     process_event_tool,
     get_items_tool,
     GetItemsQuery,
+    get_candidates_recipient_info,
 )
 
+class GetCandidatesRecipientInfoArgs(BaseModel):
+    name: Optional[str] = None
+    name_hint: Optional[str] = None
 
 # start simple prompt, a few tools only
 tools = ToolRegistry(
@@ -24,6 +28,11 @@ tools = ToolRegistry(
             fn=get_items_tool,
             args_model=GetItemsQuery,
             description="Get items.",
+        ),
+        "get_candidates_recipient_info": ToolSpec(
+            fn=get_candidates_recipient_info,
+            args_model=GetCandidatesRecipientInfoArgs,
+            description="Find candidate WhatsApp recipients by name or hint.",
         ),
     }
 )

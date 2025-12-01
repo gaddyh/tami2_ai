@@ -8,7 +8,6 @@ from models.reminder_item import ReminderItem
 from models.task_item import TaskItem, BulkTasksAction
 from models.event_item import EventItem
 from models.base_item import ItemStatus
-from tools.recipients import _get_candidates_recipient_info
 
 # -------------------------------------------------
 # In-memory demo DB: project → {"tasks": [...], "reminders": [...], "events": [...]}
@@ -241,28 +240,75 @@ def get_candidates_recipient_info(
     args: Dict[str, Any],
     state: Dict[str, Any],
 ) -> Dict[str, Any]:
-    print("get_candidates_recipient_info state", state)
-    print("get_candidates_recipient_info args", args)
+    """
+    Dummy recipient lookup.
 
-    ctx = state.get("context")
-    if not ctx:
-        raise ValueError("ctx not found in state")
+    - Uses a small in-memory 'contacts' list per project.
+    - Optionally filters by a hint (name) from args/state.
+    - Returns a candidates list similar to what your interrupt chooser expects.
+    """
+    store = _project_store(state)
 
-    user_id = ctx.get("user_id")
-    if not user_id:
-        raise ValueError("user_id not found in ctx")
+    # Always have a contacts list
+    contacts = store.setdefault("contacts", [])
 
-    # --------------------------
-    # Extract raw query STRING
-    # --------------------------
-    raw_name = args.get("name") or args.get("name_hint") or ""
-    if not isinstance(raw_name, str):
-        raise ValueError(f"get_candidates_recipient_info expected string for name/name_hint, got {type(raw_name)}")
+    # Seed fake contacts once
+    if not contacts:
+        contacts.extend(
+            [
+                {
+                    "name": "אמא",
+                    "chat_id": "972500000001@c.us",
+                    "type": "family",
+                },
+                {
+                    "name": "מעוז",
+                    "chat_id": "972500000002@c.us",
+                    "type": "friend",
+                    "email": "muoz@gmail.com",
+                },
+                {
+                    "name": "גל ליס",
+                    "chat_id": "972500000003@c.us",
+                    "type": "work",
+                    "email": "gal@gmail.com",
+                },
+            ]
+        )
 
-    # --------------------------
-    # Call the real resolver
-    # --------------------------
-    return _get_candidates_recipient_info(
-        user_id=user_id,
-        name=raw_name,
+    # Prefer explicit name from args, then fall back to state / text
+    hint = (
+        args.get("name")
+        or state.get("recipient_name")
+        or state.get("context", {}).get("recipient_name")
+        or state.get("context", {}).get("recipient_hint")
+        or state.get("input_text")
+        or ""
     )
+
+    candidates = contacts
+    if hint:
+        h = hint.casefold()
+        filtered = [
+            c for c in candidates
+            if h in c.get("name", "").casefold()
+        ]
+        if filtered:
+            candidates = filtered
+
+    # Add a naive score just to make the shape richer
+    if hint:
+        h = hint.casefold()
+        for c in candidates:
+            name_cf = c.get("name", "").casefold()
+            c.setdefault("score", 0.9 if h in name_cf else 0.5)
+    else:
+        for c in candidates:
+            c.setdefault("score", 0.5)
+
+    return {
+        "status": "ok",
+        "hint": hint,
+        "candidates": candidates,
+        "count": len(candidates),
+    }

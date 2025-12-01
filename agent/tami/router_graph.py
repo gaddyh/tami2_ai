@@ -16,12 +16,21 @@ from agent.tami.comms.main import build_comms_agent_graph
 client = OpenAI()  # or reuse your existing client
 
 
-def llm_route(input_text: str) -> Literal["tasks", "events", "comms"]:
+def llm_route(input_text: str, state: LinearAgentState) -> Literal["tasks", "events", "comms"]:
     """
     Call the router LLM and return one of: "tasks" | "events" | "comms".
     Falls back to "tasks" on any error.
     """
     try:
+        is_followup_question = state.get("is_followup_question", False)
+
+        # --- 1) Deterministic handling for follow-up answers ---
+        if is_followup_question:
+            print("Follow-up question detected, target agent is", state.get("target_agent", "tasks"))
+            prev_agent = state.get("target_agent", "tasks")
+            if prev_agent in ("tasks", "events", "comms"):
+                return prev_agent  # type: ignore[return-value]
+            # if somehow weird, still fall through to LLM with default
         resp = client.chat.completions.create(
             model="gpt-4.1-mini",  # or whatever you're using
             response_format={"type": "json_object"},
@@ -51,7 +60,7 @@ def route_node(state: LinearAgentState) -> LinearAgentState:
 
 
     #print(f"Routing: current_datetime={state.get('context', {}).get('current_datetime', '')}")
-    target = llm_route(text)
+    target = llm_route(text, state)
     state["target_agent"] = target
 
     # optional: keep routing explanation in context for debugging

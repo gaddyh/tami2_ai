@@ -1,13 +1,11 @@
 from __future__ import annotations
 from typing import Any, Optional, Literal, List, Dict
-from tools.base import function_tool, span_attrs, mark_error, redact, summarize, now_iso
-from agents import RunContextWrapper
+from tools.base import span_attrs, mark_error, summarize
 from models.event_item import EventItem, ProcessedEventResult
 from tools.base import instrument_io
 from tools.process_event import _process_event
 from models.app_context import AppCtx
 
-@function_tool(strict_mode=True)
 @instrument_io(
     name="tool.process_event",
     meta={"agent": "tami", "operation": "tool", "tool": "process_event", "schema": "EventItem.v1"},
@@ -36,7 +34,6 @@ def process_event(ctx: RunContextWrapper[AppCtx], event: EventItem):
             mark_error(e, kind="ToolError.process_event", span=s)
             raise
 
-@function_tool(strict_mode=True)
 @instrument_io(
     name="tool.process_events",
     meta={

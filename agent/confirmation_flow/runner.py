@@ -2,6 +2,9 @@
 from typing import Any, Dict, Optional
 from langgraph.types import Command
 
+from typing import Any, Dict, Optional
+from langgraph.types import Command
+
 def handle_confirmation_turn(
     app,
     thread_id: str,
@@ -18,40 +21,23 @@ def handle_confirmation_turn(
           "interrupts": tuple[Interrupt, ...] | None,
           "state": dict | None,
         }
-
-    Usage pattern:
-
-    - First call:
-        handle_confirmation_turn(app, thread_id, user_message=None, base_state=initial_state)
-
-      (initial_state should contain: query, options, etc.)
-
-    - If status == "interrupt":
-        - read interrupt.value["question"], send to user
-        - later, when user replies → call again with same thread_id and user_message=<reply>
-
-    - On resume calls:
-        handle_confirmation_turn(app, thread_id, user_message=<user_reply>)
     """
     config = {"configurable": {"thread_id": thread_id}}
     snapshot = app.get_state(config)
 
-    # Pending interrupts from a previous run?
     interrupts: tuple[Any, ...] = ()
     if snapshot is not None:
         interrupts = getattr(snapshot, "interrupts", ()) or ()
 
     # 1) We are in the middle of a clarification → RESUME
     if interrupts:
-        intr = interrupts[0]
-        # For confirmation_flow we treat user_message as the raw answer
         print("\nUser reply:", user_message)
-        resume_value = {"content": "" if user_message is None else str(user_message)}
+        # pass raw string back into the interrupt
+        resume_value = "" if user_message is None else str(user_message)
         result = app.invoke(Command(resume=resume_value), config=config)
 
     else:
-        # 2) Fresh run → start with base_state only
-        #print("\nBase state:", base_state)
+        # 2) Fresh run → start with base_state only (query + options)
         state: Dict[str, Any] = dict(base_state or {})
         result = app.invoke(state, config=config)
 
@@ -59,7 +45,6 @@ def handle_confirmation_turn(
     # Normalize return: interrupt vs plain state
     # -------------------------------------------------
     if isinstance(result, dict) and result.get("__interrupt__"):
-        # Get the latest interrupts from checkpoint
         snapshot = app.get_state(config)
         interrupts = ()
         if snapshot is not None:
@@ -73,7 +58,6 @@ def handle_confirmation_turn(
             "state": None,
         }
 
-    # Plain state
     return {
         "status": "ok",
         "interrupt": None,

@@ -212,6 +212,7 @@ def write_result_to_pretty_json_per_item(result: dict, dirpath: str = "eval_resu
         "expected_output": result["expected_output"],
         "task_result": result["task_result"],
         "evaluations": evals,
+        "created_at": datetime.now().isoformat(),
     }
 
     with open(filepath, "w", encoding="utf-8") as f:

@@ -7,7 +7,6 @@ from shared.google_calendar.tokens import get_valid_credentials
 from datetime import datetime, timezone, date, timedelta
 from zoneinfo import ZoneInfo
 from shared.google_calendar.util import _iso_to_rfc5545_z, _normalize_byday, _FREQ_MAP
-from agents import RunContextWrapper
 from models.app_context import AppCtx
 from shared.time import DEFAULT_TZ
 from shared.user import get_user
@@ -308,7 +307,7 @@ def _find_conflicts(service, calendar_id: str, start: datetime, end: datetime,
 
 # --- Tool --------------------------------------------------------------------
 
-def _process_event(ctx: RunContextWrapper[AppCtx], event: EventItem) -> dict:
+def _process_event(ctx: AppCtx, event: EventItem) -> dict:
     """
     Create, update, or delete a Google Calendar event for the given user.
     Supports timed and all-day events.

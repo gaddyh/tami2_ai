@@ -27,10 +27,10 @@ def build_recipients_agent_app() -> StateGraph:
         initial_system_prompt=RECIPIENTS_INITIAL_SYSTEM_PROMPT,
         final_system_prompt=RECIPIENTS_FINAL_SYSTEM_PROMPT,
     )
-    return app
+    return app.compile()
 
 
-recipients_app = build_recipients_agent_app()
+app = build_recipients_agent_app()
 
 from agent.confirmation_flow.runner import handle_confirmation_turn
 from agent.confirmation_flow.state import ConfirmationState
@@ -43,5 +43,5 @@ def run_recipients_agent(thread_id: str, search_result):
         "options": search_result["candidates"],
     }
     # config/thread_id as usual for LangGraph
-    out_state = handle_confirmation_turn(recipients_app, thread_id, None, state)
+    out_state = handle_confirmation_turn(app, thread_id, None, state)
     return out_state.get("selected_item")

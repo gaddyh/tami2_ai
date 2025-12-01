@@ -78,7 +78,7 @@ def _handle_tami_turn_internal(
             "status": "interrupt",
             "interrupt": intr,
             "interrupts": interrupts,
-            "state": None,
+            "state": result,
         }
 
     # Plain state
