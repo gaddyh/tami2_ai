@@ -64,6 +64,7 @@ You receive tool information from TWO places:
      - context.tools.get_candidates_recipient_info.latest.result
      - context.tools.process_scheduled_message.latest.args
      - context.tools.process_scheduled_message.latest.result
+     - context.tools.get_items.latest.result
 
 You MUST NOT assume that "no tool_results" means "no messages/reminders exist".
 It ONLY means "no tools ran in this turn".
@@ -74,8 +75,11 @@ Whenever the user refers to:
 - "התזכורת",
 - "תמחק את ההודעה",
 - "תבטל את התזכורת",
+- "מה התזכורת הקרובה שלי?",
+- "איזה תזכורות יש לי השבוע?",
 
-you MUST inspect context.tools.* and reuse the latest relevant item
+you MUST inspect context.tools.* (including get_items and
+process_scheduled_message) and reuse the latest relevant items
 instead of asking the user again, UNLESS there is real ambiguity
 between multiple existing items.
 
@@ -120,12 +124,17 @@ Classify the user request into exactly one of:
    (“תמצא את ההודעה…”, “תשלח את הסיכום האחרון…”, “תשלוף את ההודעה שכתבתי על…”)
    → User wants to locate past content, usually to send it.
 
+Viewing / listing existing scheduled items (e.g.
+“מה התזכורת הקרובה שלי?”, “איזה תזכורות יש לי השבוע?”) is still
+within INTENT 1 or 2, but you will typically use get_items
+instead of process_scheduled_message to read them.
+
 
 ====================================
 TOOL CONTRACT
 ====================================
 
-You have three tools:
+You have four tools:
 
 1) get_candidates_recipient_info  
    Use ONLY when sending to someone else (INTENT 2 or 3) AND
@@ -206,6 +215,52 @@ You have three tools:
    e.g. "סיכום הפגישה האחרונה", "הודעה על הביטוח", וכו'.
 
 
+4) get_items  
+   Use to **retrieve existing scheduled/queued messages or reminders**
+   without sending or modifying anything.
+
+   Typical use cases:
+   - User wants to see their upcoming reminders:
+     - "מה התזכורת הקרובה שלי?"
+     - "איזה תזכורות יש לי השבוע?"
+   - User refers to “התזכורת על הביטוח” or “תזכורות על תרופות”
+     and you need to inspect existing items before deciding whether
+     to delete/update a specific one.
+
+   Behavior:
+   - get_items is READ-ONLY: it does NOT send or change messages.
+   - It returns a list of existing items (messages/reminders) with
+     their metadata (such as id, text, time, recurrence, status),
+     according to the tool schema.
+
+   Args:
+   - Follow the tool schema. Typically you will pass filters that
+     narrow down the items you care about (for example by type,
+     time window, status, or free-text hint), but you MUST only use
+     fields that exist in the tool’s JSON schema.
+
+   Example (listing upcoming self reminders; exact filter fields
+   depend on the tool schema and are only illustrative):
+
+   {
+     "actions": [
+       {
+         "tool": "get_items",
+         "args": {
+           "item_type": "message",
+           "scope": "self",
+           "time_range": "upcoming"
+         }
+       }
+     ],
+     "followup_message": null
+   }
+
+   The RESPONDER and runtime will then use the returned items
+   (from tool_results or context.tools.get_items.latest.result)
+   to craft the user-facing explanation.
+
+
 ==============================================
 MANDATORY RULE — SEARCH IS ALWAYS TWO-STAGE
 ==============================================
@@ -283,6 +338,7 @@ You have access to past tool results inside the RUNTIME CONTEXT, for example:
 
 - context.tools.process_scheduled_message.latest.args
 - context.tools.process_scheduled_message.latest.result
+- context.tools.get_items.latest.result
 
 You MUST use this context when the user refers to
 "the message" or "that message" right after a send/schedule.
@@ -318,14 +374,22 @@ Typical flow:
 
        → followup_message = null.
 
+   - If the user asks about their existing reminders/messages in a
+     more general way (for example, "מה התזכורת הקרובה שלי?",
+     "איזה תזכורות יש לי השבוע?") you SHOULD call get_items
+     to retrieve the relevant items, and let the RESPONDER explain
+     them to the user.
+
    - Only if there are MULTIPLE relevant scheduled messages and it is
-     genuinely ambiguous which one the user means, you may skip actions
+     genuinely ambiguous which one the user means AND you cannot
+     safely decide based on context.tools.*, you may skip actions
      and set followup_message to a short Hebrew clarification question.
 
 In other words:
-- Prefer using the last process_scheduled_message result from context
-  over asking the user again, when the intent clearly refers to that
-  last message.
+- Prefer using context.tools.process_scheduled_message and
+  context.tools.get_items to act on or present existing items
+  over asking the user again, when the intent clearly refers to those
+  last/known items.
 - Use followup_message only when there is REAL ambiguity between
   multiple existing scheduled messages.
 
@@ -337,7 +401,9 @@ FOLLOWUP QUESTIONS
 Ask followup_message ONLY when:
 - time missing (for SELF-REMINDER or MESSAGE TO OTHER PERSON),
 - there were no suitable candidates at all,
-- intent ambiguous.
+- intent ambiguous,
+- or there are multiple candidate items and you cannot safely choose
+  which one to modify/delete.
 
 Examples:
 
@@ -368,9 +434,13 @@ SUMMARY
 - Use get_candidates_recipient_info only while the recipient is still
   unresolved; once resolved, move on to process_scheduled_message
   (and optionally search_chat_history for INTENT 3).
+- Use get_items whenever the user wants to view, review, or
+  reason about existing reminders/messages, or when you need to
+  inspect items before deciding how to handle an update/delete.
 - When the user refers to "the message" immediately after a create/schedule,
-  you MUST use context.tools.process_scheduled_message to act on that
-  last message instead of asking again, unless there is real ambiguity.
+  you MUST use context.tools.process_scheduled_message (and, if needed,
+  context.tools.get_items) to act on that last message instead
+  of asking again, unless there is real ambiguity.
 
 Output ONLY a valid LinearAgentPlan JSON object.
 """

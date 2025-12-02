@@ -51,13 +51,20 @@ def main():
         """,
     ]
 
-    test_inputs = [
+    test_inputs_tasks = [
         "whats my tasks",
         "delete check mail",
         "whats my tasks",
     ]
 
-    for user in test_inputs:
+    test_inputs_scheduled_messages = [
+        "מה ההודעות המתומנות שלי?",
+        "תזכיר לי לעשן עוד 5 דקות",
+        "מה ההודעות המתומנות שלי?",
+
+    ]
+
+    for user in test_inputs_scheduled_messages:
         print("You:", user)
         start = time.perf_counter_ns()
         result = run(user, "tasks__linear_demo")

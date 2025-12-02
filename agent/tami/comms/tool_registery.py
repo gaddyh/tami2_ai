@@ -9,6 +9,8 @@ from agent.tami.comms.tools import (
     process_scheduled_message,
     get_candidates_recipient_info,
     search_chat_history,
+    get_items_tool,
+    GetItemsQuery,
 )
 
 # ---- small args models for the other tools ----
@@ -40,6 +42,11 @@ tools = ToolRegistry(
             fn=search_chat_history,
             args_model=SearchChatHistoryArgs,
             description="Search WhatsApp chat history for messages.",
+        ),
+         "get_items": ToolSpec(
+            fn=get_items_tool,
+            args_model=GetItemsQuery,
+            description="Get items.",
         ),
     }
 )

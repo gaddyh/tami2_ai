@@ -6,11 +6,23 @@ import uuid
 from pydantic import BaseModel  # <-- add this
 from models.reminder_item import ReminderItem
 from models.task_item import TaskItem, BulkTasksAction
-from models.get_query import GetItemsQuery
 from tools.recipients import _get_candidates_recipient_info
 from tools.messaging import _process_scheduled_message
 from models.scheduled_message import ScheduledMessageItem
+from models.base_item import ItemStatus
+from tools.get_items import _get_items
+from typing import Literal, Union, Optional
 
+class GetItemsQuery(BaseModel):
+    item_type: Literal["scheduled_messages"]
+    status: Union[ItemStatus, Literal["all"]] = "open"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    limit: int = 100
+
+    model_config = {
+        "extra": "forbid",
+    }
 DB: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
 def _now_iso() -> str:
@@ -41,20 +53,6 @@ def _as_reminder_item(args: ReminderItem | Dict[str, Any]) -> ReminderItem:
     if isinstance(args, BaseModel):
         return args
     return ReminderItem(**args)
-
-def _project_store(state: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Return the per-project store (tasks/reminders/events) from the global DB.
-    Ensures all three lists exist.
-    """
-    project = state.get("project") or "default"
-    store = DB.setdefault(project, {"tasks": [], "reminders": [], "events": []})
-    # In case an older version created this without 'events'
-    store.setdefault("events", [])
-    return store
-# =================================================
-#  COMMS TOOLS — DUMMY IMPLEMENTATIONS FOR TESTING
-# =================================================
 
 def get_candidates_recipient_info(
     args: Dict[str, Any],
@@ -103,6 +101,7 @@ def process_scheduled_message(
     if args.get("recipient_chat_id") == "SELF":
         args["recipient_chat_id"] = user_id + "@c.us"
     action = ScheduledMessageItem(**args)
+    action.status = "open"
     return _process_scheduled_message(user_id=user_id, action=action)
  
 def search_chat_history(
@@ -172,3 +171,30 @@ def search_chat_history(
         "items": items,
         "count": len(items),
     }
+
+def get_items_tool(
+    args: GetItemsQuery | Dict[str, Any],
+    state: Dict[str, Any],
+) -> Dict[str, Any]:
+    query = _as_get_items_query(args)
+    ctx = state.get("context")
+    if not ctx:
+        raise ValueError("ctx not found in state")
+
+    user_id = ctx.get("user_id")
+    if not user_id:
+        raise ValueError("user_id not found in ctx")
+
+    print("get_items_tool", user_id, "scheduled_messages", query.status, query.start_date, query.end_date)
+    try:
+        # _get_items already returns {ok, items, error, code}
+        return _get_items(user_id, "scheduled_messages", query.status, query.start_date, query.end_date)
+
+    except Exception as e:
+        return {
+            "ok": False,
+            "items": [],
+            "error": str(e),
+            "code": None,
+        }
+

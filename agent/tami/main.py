@@ -55,6 +55,18 @@ def process_input(inp: In) -> str:
     status = result.get("status")
     graph_state = result.get("state") or {}
 
+    #debug print
+    planner_actions = graph_state.get("context", {}).get("last_planner_actions")
+    print("=== Planner Tool Calls ===")
+    print(planner_actions)
+
+    tool_records = graph_state.get("context", {}).get("tools", {})
+    print("=== Tool Results ===")
+    for tool_name, rec in tool_records.items():
+        print(tool_name, rec.get("latest"))
+
+
+
     # -----------------------------
     # Decide what to send back
     # -----------------------------
@@ -82,7 +94,7 @@ def process_input(inp: In) -> str:
     # Debug print (optional, like eval)
     print("=== Tami Turn Output ===")
     print("status:", status)
-    print("graph_state:", graph_state)
+    #print("graph_state:", graph_state)
     print("outgoing_message:", outgoing)
 
     return outgoing

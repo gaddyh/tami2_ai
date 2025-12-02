@@ -75,7 +75,7 @@ class ScheduledMessageStore:
             "scheduled_time": dt_utc,  # Firestore Timestamp
             "recipient_name": item.recipient_name,
             "recipient_chat_id": item.recipient_chat_id,
-            "status": "pending",
+            "status": "open",
             "created_at": now_iso,
             "updated_at": now_iso,
             "sender_name": item.sender_name,
@@ -138,7 +138,7 @@ class ScheduledMessageStore:
         # query_scheduled_messages()
         query = (
             self.collection
-            .where(filter=FieldFilter("status", "in", ["pending", "failed"]))
+            .where(filter=FieldFilter("status", "in", ["open", "failed"]))
             .where(filter=FieldFilter("scheduled_time", ">=", start_utc))
             .where(filter=FieldFilter("scheduled_time", "<=", end_utc))
             .order_by("scheduled_time")
@@ -148,14 +148,14 @@ class ScheduledMessageStore:
         return [{"item_id": doc.id, **doc.to_dict()} for doc in results if doc.exists]
 
     def get_upcoming(self, user_id: str) -> List[dict]:
-        """Fetch upcoming scheduled messages for a user (next 7 days), status 'pending'."""
+        """Fetch upcoming scheduled messages for a user (next 7 days), status 'open'."""
         now = _ensure_aware_utc(datetime.utcnow())
         future = now + timedelta(days=7)
 
         query = (
             self.collection
             .where(filter=FieldFilter("user_id", "==", user_id))
-            .where(filter=FieldFilter("status", "==", "pending"))
+            .where(filter=FieldFilter("status", "==", "open"))
             .where(filter=FieldFilter("scheduled_time", ">=", now))
             .where(filter=FieldFilter("scheduled_time", "<=", future))
             .order_by("scheduled_time")
@@ -166,7 +166,7 @@ class ScheduledMessageStore:
     def get_items(
         self,
         user_id: str,
-        status: Literal["all", "pending", "completed"] = "pending",
+        status: Literal["all", "open", "completed"] = "open",
         from_date: datetime = time.utcnow().replace(microsecond=0),
         to_date: datetime = time.utcnow().replace(microsecond=0) + timedelta(days=7),
     ) -> List[dict]:
@@ -225,7 +225,7 @@ class ScheduledMessageStore:
             "recipient_chat_id": recipient_chat_id,
             "recipient_name": recipient_name or recipient_chat_id,
             "scheduled_time": _ensure_aware_utc(dt),
-            "status": "pending",
+            "status": "open",
             "created_at": now_iso,
             "updated_at": now_iso,
         }

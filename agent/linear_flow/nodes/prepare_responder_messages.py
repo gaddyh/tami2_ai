@@ -3,7 +3,20 @@ import json
 from typing import Callable, Dict, Any
 from agent.linear_flow.state import LinearAgentState
 from observability.obs import span_step, safe_update_current_span_io
+from datetime import timezone, datetime
 
+def make_json_safe(obj):
+    if isinstance(obj, datetime):
+        # DatetimeWithNanoseconds is a subclass of datetime → this covers it too
+        return obj.astimezone(timezone.utc).isoformat()
+
+    if isinstance(obj, dict):
+        return {k: make_json_safe(v) for k, v in obj.items()}
+
+    if isinstance(obj, (list, tuple)):
+        return [make_json_safe(v) for v in obj]
+
+    return obj
 
 def make_prepare_responder_messages_node(
     responder_system_prompt: str,
@@ -63,8 +76,8 @@ def make_prepare_responder_messages_node(
                         "RUNTIME CONTEXT WITH TOOL RESULTS:\n```json\n"
                         + json.dumps(
                             {
-                                "context": context,
-                                "tool_results": tool_results,
+                                "context": make_json_safe(context),
+                                "tool_results": make_json_safe(tool_results),
                             },
                             ensure_ascii=False,
                         )
