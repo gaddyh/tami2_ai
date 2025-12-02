@@ -64,7 +64,12 @@ def main():
 
     ]
 
-    for user in test_inputs_scheduled_messages:
+    test_inputs_events = [
+        "מה האירועים שלי"
+    ]
+        
+
+    for user in test_inputs_events:
         print("You:", user)
         start = time.perf_counter_ns()
         result = run(user, "tasks__linear_demo")

@@ -55,12 +55,14 @@ def _get_items(
     from_date_utc = _to_utc(from_dt, user_tz) if from_dt else None
     to_date_utc = _to_utc(to_dt, user_tz) if to_dt else None
 
-    if item_type == "events" and status == "pending" and not from_date_utc and not to_date_utc:
+    if item_type == "events" and (status == "pending" or status == "open") and not from_date_utc and not to_date_utc:
         from datetime import timedelta
         now_utc = datetime.now(timezone.utc)
         from_date_utc = now_utc
         to_date_utc = now_utc + timedelta(days=30)
 
+
+    print("get_items", user_id, item_type, status, from_date_utc, to_date_utc)
     try:
         if item_type == "reminders":
             store = ReminderStore()

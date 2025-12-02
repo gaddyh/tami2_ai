@@ -275,7 +275,7 @@ class GoogleCalendarStore:
     def get_items(
         self,
         user_id: str,
-        status: Literal["all", "pending", "completed"] = "pending",
+        status: Literal["all", "open", "pending", "completed"] = "open",
         from_date: datetime  = time.utcnow().replace(microsecond=0),
         to_date: datetime  = time.utcnow().replace(microsecond=0) + timedelta(days=7),
     ) -> List[dict]:
@@ -301,8 +301,10 @@ class GoogleCalendarStore:
         out: List[dict] = []
         for ev in events:
             priv = (ev.get("extendedProperties", {}) or {}).get("private", {}) or {}
-            ev_status = priv.get("status", "pending")
-            if status != "all" and ev_status != status:
+            # For regular calendar events, use a default status of 'open' if not specified
+            ev_status = priv.get("status", "open")
+            # Only filter by status if it's explicitly set to 'pending' or 'completed'
+            if status not in ["all", "open"] and ev_status != status:
                 continue
 
             # Build participants from attendees (if any)

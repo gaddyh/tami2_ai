@@ -78,15 +78,15 @@ if __name__ == "__main__":
     #task_result = tami_router_task(item=item)
     
     #run_item("ab7fc91f-789b-41cf-b551-b12898903873")
-    #item = get_item_by_id(dataset, "ab7fc91f-789b-41cf-b551-b12898903873")
-    #task_result = tami_router_task(item=item)
+    item = get_item_by_id(dataset, "ab7fc91f-789b-41cf-b551-b12898903873")
+    task_result = tami_router_task(item=item)
 
-    #item = get_item_by_id(dataset, "9d466174-f283-4daa-8a2e-ee13b49dc02b")
-    #task_result = tami_router_task(item=item)
+    item = get_item_by_id(dataset, "9d466174-f283-4daa-8a2e-ee13b49dc02b")
+    task_result = tami_router_task(item=item)
 
     #item = get_item_by_id(dataset, "e931184f-ffd4-4e87-87b9-26071e4399a9")
     #task_result = tami_router_task(item=item)
 
-    item = get_item_by_id(dataset, "686ec570-ef06-4fe7-9942-47b0a6de8869")
-    task_result = tami_router_task(item=item)
+    #item = get_item_by_id(dataset, "686ec570-ef06-4fe7-9942-47b0a6de8869")
+    #task_result = tami_router_task(item=item)
     

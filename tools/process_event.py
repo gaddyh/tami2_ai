@@ -307,7 +307,7 @@ def _find_conflicts(service, calendar_id: str, start: datetime, end: datetime,
 
 # --- Tool --------------------------------------------------------------------
 
-def _process_event(ctx: AppCtx, event: EventItem) -> dict:
+def _process_event(user_id: str, event: EventItem) -> dict:
     """
     Create, update, or delete a Google Calendar event for the given user.
     Supports timed and all-day events.
@@ -319,10 +319,6 @@ def _process_event(ctx: AppCtx, event: EventItem) -> dict:
         conflicts?: [ {id,title,start,end}, ... ]  # present only when code == 'slot_taken'
       }
     """
-    user_id = ctx.context.user_id
-    if not user_id:
-        return {"ok": False, "item_id": None, "error": "Missing user_id", "code": "no_user"}
-
     try:
         creds = get_valid_credentials(user_id)
         if not creds:
