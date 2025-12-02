@@ -11,7 +11,7 @@ from shared.time import to_user_timezone, utcnow
 from shared.whisper_stt_facebook import transcribe_facebook_audio
 from context.primitives.sender import SharedContactInfo
 from models.input import In, Source, Category
-from agent.tami_in import process_input
+from agent.tami.main import process_input
 from tools.base import instrument_io
 get_display = lambda x: x
 
@@ -77,10 +77,13 @@ async def handleUserInput(rawMessage:RawMessage, user:User):
         br = rawMessage.content.button_reply
         rawMessage.content.text = f"{br.text}"
 
+    from shared.time import now_iso_in_tz
+
     inp = In(
         user_id=user.user_id,
         user_name=user.config.name,
         thread_id=rawMessage.chat_id,
+        current_datetime=now_iso_in_tz(user.config.timezone),
         text=rawMessage.content.text,
         source=Source.WHATSAPP,
         category=Category.USER_REQUEST,
@@ -89,7 +92,8 @@ async def handleUserInput(rawMessage:RawMessage, user:User):
         tz=user.config.timezone,
         locale=user.config.language,
     )
-    result = await process_input(inp)
+
+    result = process_input(inp)
     print(f"result:\n {result}")
     return result
 

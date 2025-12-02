@@ -40,7 +40,7 @@ def _process_scheduled_message(
             if name:
                 user = get_user(user_id)
                 contact = user.runtime.contacts.get(name, {})
-                contact["phone"] = chat_id.split("@")[0]
+                contact["phone"] = action.recipient_chat_id.split("@")[0]
                 user.runtime.contacts[name] = contact
 
                 UserStore(user_id).save(user)

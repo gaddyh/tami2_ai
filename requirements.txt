@@ -23,4 +23,5 @@ openai
 langgraph-checkpoint-sqlite
 aiosqlite
 langchain-openai
-langgraph    
+langgraph
+python-multipart
