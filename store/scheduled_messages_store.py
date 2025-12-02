@@ -138,7 +138,7 @@ class ScheduledMessageStore:
         # query_scheduled_messages()
         query = (
             self.collection
-            .where(filter=FieldFilter("status", "in", ["open", "failed"]))
+            .where(filter=FieldFilter("status", "in", ["pending", "open", "failed"]))
             .where(filter=FieldFilter("scheduled_time", ">=", start_utc))
             .where(filter=FieldFilter("scheduled_time", "<=", end_utc))
             .order_by("scheduled_time")

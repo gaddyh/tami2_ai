@@ -289,7 +289,7 @@ async def trigger_events():
             item_id=str(trig["item_id"]),
         ) as span:
             try:
-                if trig["recipient_chat_id"] == "SELF":
+                if trig["recipient_chat_id"] == trig["user_id"] + "@c.us":
                     success = await adapter.send_message(trig["user_id"], trig.get("message"))
                 else:
                     result = await send_scheduled_message(

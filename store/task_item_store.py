@@ -298,7 +298,7 @@ class TaskStore:
         which often requires composite indexes with range filters on `due`.
         """
         try:
-            statuses = statuses or ["pending", "failed"]
+            statuses = statuses or ["pending", "failed", "open"]
             start_utc = _ensure_aware_utc(start)
             end_utc = _ensure_aware_utc(end)
 
