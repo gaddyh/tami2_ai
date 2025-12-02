@@ -10,18 +10,12 @@ from store.user import UserStore
 from shared.user import userContextDict, normalize_recipient_id
 from observability.obs import instrument_io
 
-def _process_contact_message(ctx: AppCtx, action: ScheduledMessageItem) -> dict:
-    """
-    Process a scheduled message to a contact by chat ID.
-    For recipient_chat_id you can pass either:
-      - Full chat JID (groups must have a jid)
-      - Raw phone number like "9725XXXXXXXX" (with or without '+')
-    The tool will normalize phone numbers to full JID automatically.
+def _process_scheduled_message(
+    user_id: str,
+    action: ScheduledMessageItem,
+) -> Dict[str, Any]:
 
-    Returns: { ok: bool, item_id: str|None, error?: str }
-    """
     try:
-        user_id = ctx.context.user_id
         
         if action.command not in ("create", "update", "delete"):
             return _fail("unknown_command", {"item_id": None})
@@ -43,14 +37,14 @@ def _process_contact_message(ctx: AppCtx, action: ScheduledMessageItem) -> dict:
         if action.command == "create":
             item_id = store.save(user_id=user_id, item=action)
             name = action.recipient_name
-            chat_id = action.recipient_chat_id
-            user = get_user(user_id)
-            contact = user.runtime.contacts.get(name, {})
-            contact["phone"] = chat_id.split("@")[0]
-            user.runtime.contacts[name] = contact
+            if name:
+                user = get_user(user_id)
+                contact = user.runtime.contacts.get(name, {})
+                contact["phone"] = chat_id.split("@")[0]
+                user.runtime.contacts[name] = contact
 
-            UserStore(user_id).save(user)
-            userContextDict[user_id] = user
+                UserStore(user_id).save(user)
+                userContextDict[user_id] = user
 
             return _ok({"item_id": item_id})
 
@@ -78,20 +72,9 @@ def _process_contact_message(ctx: AppCtx, action: ScheduledMessageItem) -> dict:
         return _fail("unknown_command", {"item_id": None})
 
     except Exception as e:
-        mark_error(e, kind="ToolError.process_contact_message", span=s); raise
+        print(f"Error in process_scheduled_message: {e}")
+        import traceback
 
-@instrument_io(
-    name="tool.process_contact_message",
-    meta={"agent": "tami", "operation": "tool", "tool": "process_contact_message", "schema": "ProcessContactMessage.v1"},
-    input_fn=lambda ctx, action: {"user_id": ctx.context.user_id, "action": action},
-    output_fn=summarize,
-    redact=True,
-)
-def process_contact_message(ctx: RunContextWrapper[AppCtx], action: ScheduledMessageItem):
-    with span_attrs("tool.process_contact_message", agent="tami", operation="tool", tool="process_contact_message") as s:
-        s.update(input={"action": action})
-        try:
-            out = _process_contact_message(ctx=ctx, action=action)
-            s.update(output=summarize(out)); return out
-        except Exception as e:
-            mark_error(e, kind="ToolError.process_contact_message", span=s); raise
+        traceback.print_exc()
+        raise  # <--- let it propagate so you get a full stack trace
+

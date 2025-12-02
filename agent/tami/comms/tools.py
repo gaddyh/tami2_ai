@@ -8,6 +8,8 @@ from models.reminder_item import ReminderItem
 from models.task_item import TaskItem, BulkTasksAction
 from models.get_query import GetItemsQuery
 from tools.recipients import _get_candidates_recipient_info
+from tools.messaging import _process_scheduled_message
+from models.scheduled_message import ScheduledMessageItem
 
 DB: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
@@ -89,12 +91,20 @@ def process_scheduled_message(
     args: Dict[str, Any],
     state: Dict[str, Any],
 ) -> Dict[str, Any]:
-    return {
-        "status": "ok",
-        "item_id": "sdfsdfssdfsdfTEST",
-    }
+    
+    ctx = state.get("context")
+    if not ctx:
+        raise ValueError("ctx not found in state")
 
+    user_id = ctx.get("user_id")
+    if not user_id:
+        raise ValueError("user_id not found in ctx")
 
+    if args.get("recipient_chat_id") == "SELF":
+        args["recipient_chat_id"] = user_id + "@c.us"
+    action = ScheduledMessageItem(**args)
+    return _process_scheduled_message(user_id=user_id, action=action)
+ 
 def search_chat_history(
     args: Dict[str, Any],
     state: Dict[str, Any],
