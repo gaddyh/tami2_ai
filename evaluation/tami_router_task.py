@@ -97,8 +97,8 @@ def tami_router_task(*, item, **kwargs) -> Dict[str, Any]:
 
     graph_state = result.get("state") or {}
     print("=== Tami Turn Output ===")
-    print("graph_state:", graph_state)
-    print("result:", result)
+    #print("graph_state:", graph_state)
+    #print("result:", result)
 
     status = result.get("status")
 

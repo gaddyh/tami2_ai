@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from models.base_item import BaseActionItem
 
 class Participant(BaseModel):
-    email: str  # email required by Google Calendar
+    email: Optional[str] = None # email required by Google Calendar
     name: str # participant name required by Google Calendar
     role: Optional[Literal["organizer", "attendee"]] = "attendee"
     status: Optional[Literal["accepted", "declined", "tentative", "needsAction"]] = None

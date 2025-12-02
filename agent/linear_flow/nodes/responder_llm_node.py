@@ -45,7 +45,7 @@ def responder_llm(state: LinearAgentState) -> LinearAgentState:
 
                 elapsed = time.time() - start
                 print(f"Responder LLM parse took {elapsed:.2f}s")
-                print("LLM response:", resp)
+                #print("LLM response:", resp)
 
                 parsed = LinearAgentResponse.model_validate_json(
                     resp.choices[0].message.content
@@ -61,12 +61,16 @@ def responder_llm(state: LinearAgentState) -> LinearAgentState:
                 # Normal final answer
                 state["response"] = parsed.response
                 state["is_followup_question"] = parsed.is_followup_question
+                state["needs_person_resolution"] = parsed.needs_person_resolution
+                state["person_resolution_items"] = parsed.person_resolution_items
                 add_message("assistant", parsed.response, state)
 
             except (APITimeoutError, APIError, BadRequestError) as e:
                 fallback = "משהו השתבש, נסה לנסח שוב."
                 state["response"] = fallback
                 state["is_followup_question"] = False
+                state["needs_person_resolution"] = False
+                state["person_resolution_items"] = None
                 add_message("assistant", fallback, state)
                 state["status"] = "error"
                 mark_error(e, kind="LLMError", span=_gen)

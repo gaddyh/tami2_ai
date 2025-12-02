@@ -31,10 +31,12 @@ class LinearAgentPlan(BaseModel):
 # agent/linear_flow/models.py  (or wherever LinearAgentResponse lives)
 
 from pydantic import BaseModel, ConfigDict, model_validator
-
+from typing import List, Optional, Dict, Any
 class LinearAgentResponse(BaseModel):
     response: str
     is_followup_question: bool = Field(False, description="Set to True if the response is a followup question.")
-    
+
+    needs_person_resolution: Optional[bool] = Field(False, description="Set to True if the response requires person resolution.")
+    person_resolution_items: Optional[List[Dict[str, Any]]] = Field(None, description="List of person resolution items if needs_person_resolution is True.")    
 
     model_config = ConfigDict(extra="forbid")

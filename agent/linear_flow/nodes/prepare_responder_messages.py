@@ -51,10 +51,6 @@ def make_prepare_responder_messages_node(
                     "role": "system",
                     "content": (
                         responder_system_prompt
-                        + "\n\n"
-                        "You are the *responder* model. "
-                        "Write a SHORT, clear reply in Hebrew for the user. "
-                        "Do not mention tools, JSON, or internal IDs."
                     ),
                 }
             )

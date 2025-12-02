@@ -70,19 +70,19 @@ def run_one(item_id: str):
 
 if __name__ == "__main__":
     #  "description": "Message to other person — requires recipient resolution"
-    #item = get_item_by_id(dataset, "9fa695cb-86b4-46da-9b1c-de53304feb8a")
-    #task_result = tami_router_task(item=item)
-    #item = get_item_by_id(dataset, "9d466174-f283-4daa-8a2e-ee13b49dc02b")
-    #task_result = tami_router_task(item=item)
-    #item = get_item_by_id(dataset, "3ab29b6e-2623-441b-8f37-99171ceb5e6e")
-    #task_result = tami_router_task(item=item)
-    
-    #run_item("ab7fc91f-789b-41cf-b551-b12898903873")
-    item = get_item_by_id(dataset, "ab7fc91f-789b-41cf-b551-b12898903873")
+    item = get_item_by_id(dataset, "9fa695cb-86b4-46da-9b1c-de53304feb8a")
     task_result = tami_router_task(item=item)
-
     item = get_item_by_id(dataset, "9d466174-f283-4daa-8a2e-ee13b49dc02b")
     task_result = tami_router_task(item=item)
+    item = get_item_by_id(dataset, "3ab29b6e-2623-441b-8f37-99171ceb5e6e")
+    task_result = tami_router_task(item=item)
+    
+    #run_item("ab7fc91f-789b-41cf-b551-b12898903873")
+    #item = get_item_by_id(dataset, "ab7fc91f-789b-41cf-b551-b12898903873")
+    #task_result = tami_router_task(item=item)
+
+    #item = get_item_by_id(dataset, "9d466174-f283-4daa-8a2e-ee13b49dc02b")
+    #task_result = tami_router_task(item=item)
 
     #item = get_item_by_id(dataset, "e931184f-ffd4-4e87-87b9-26071e4399a9")
     #task_result = tami_router_task(item=item)
