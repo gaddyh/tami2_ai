@@ -5,16 +5,7 @@ from tools.base import instrument_io, summarize, _validate, _ok, _fail
 from store.reminder_item_store import ReminderStore
 from models.app_context import AppCtx
 
-@instrument_io(
-    name="tool.process_reminder",
-    meta={"agent": "tami", "operation": "tool", "tool": "process_reminder", "schema": "ReminderItem.v1"},
-    input_fn=lambda ctx, reminder: {"user_id": ctx.context.user_id, "reminder": reminder},
-    output_fn=summarize,
-    redact=True,
-)
-def process_reminder(ctx: RunContextWrapper[AppCtx], reminder: ReminderItem ) -> Dict[str, Any]:
-    user_id = ctx.context.user_id
-    print("user_id", user_id)
+def process_reminder(user_id: str, reminder: ReminderItem ) -> Dict[str, Any]:
     store = ReminderStore()
 
     # Enforce item_id on update/delete at the tool layer

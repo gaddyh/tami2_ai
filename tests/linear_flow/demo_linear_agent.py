@@ -69,7 +69,7 @@ def main():
     ]
         
 
-    for user in test_inputs_events:
+    for user in test_inputs_scheduled_messages:
         print("You:", user)
         start = time.perf_counter_ns()
         result = run(user, "tasks__linear_demo")

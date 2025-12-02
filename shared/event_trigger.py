@@ -289,14 +289,17 @@ async def trigger_events():
             item_id=str(trig["item_id"]),
         ) as span:
             try:
-                result = await send_scheduled_message(
-                    trig["user_id"],
-                    trig.get("message"),
-                    trig["recipient_chat_id"],
-                    trig.get("recipient_name"),
-                    trig.get("sender_name"),
-                )
-                success = True
+                if trig["recipient_chat_id"] == "SELF":
+                    success = await adapter.send_message(trig["user_id"], trig.get("message"))
+                else:
+                    result = await send_scheduled_message(
+                        trig["user_id"],
+                        trig.get("message"),
+                        trig["recipient_chat_id"],
+                        trig.get("recipient_name"),
+                        trig.get("sender_name"),
+                    )
+                    success = True
             except Exception as e:
                 print(f"❌ Echo fallback send failed for {trig['item_id']}: {e}")
                 success = False
