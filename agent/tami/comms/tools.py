@@ -98,6 +98,8 @@ def process_scheduled_message(
     if not user_id:
         raise ValueError("user_id not found in ctx")
 
+    if args.get("recipient_chat_id") == "SELF":
+        args["recipient_chat_id"] = user_id + "@c.us"
     action = ScheduledMessageItem(**args)
     action.status = "open"
     return _process_scheduled_message(user_id=user_id, action=action)
