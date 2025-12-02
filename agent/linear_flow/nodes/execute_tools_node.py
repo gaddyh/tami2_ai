@@ -5,6 +5,40 @@ from typing import Callable
 from observability.obs import span_step, safe_update_current_span_io
 from datetime import datetime
 from agent.linear_flow.utils import update_context_with_tool_result
+from shared.user import get_user
+
+def _maybe_resolve_task_id_from_index(state: dict, tool_name: str, args: dict) -> dict:
+    if tool_name != "process_task":
+        return args
+
+    raw_item_id = args.get("item_id")
+    if not (isinstance(raw_item_id, str) and raw_item_id.isdigit()):
+        # Not a numeric index, leave as-is
+        return args
+
+    ctx = state.get("context", {})
+    user = get_user(ctx.get("user_id"))
+    if user and getattr(user, "runtime", None):
+        last_listing = user.runtime.last_tasks_listing
+    if not last_listing:
+        # No listing available → nothing to map, leave "1" and let it fail
+        return args
+
+    items = last_listing.get("items") or []
+    idx_1based = int(raw_item_id)
+    if not (1 <= idx_1based <= len(items)):
+        # out of range
+        return args
+
+    chosen = items[idx_1based - 1]
+    real_id = chosen.get("item_id")
+    if not real_id:
+        return args
+
+    new_args = dict(args)
+    new_args["item_id"] = real_id
+    return new_args
+
 
 def make_execute_tools_node(
     tools: ToolRegistry,
@@ -25,6 +59,8 @@ def make_execute_tools_node(
                 # if plan is ToolCallPlan, keep dot-access; if dict, use ["tool"]
                 tool_name = plan.tool
                 tool_args = plan.args
+
+                tool_args = _maybe_resolve_task_id_from_index(state, tool_name, tool_args)
 
                 entry = tools.tools.get(tool_name)
                 if isinstance(entry, ToolSpec):

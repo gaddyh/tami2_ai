@@ -50,6 +50,8 @@ def process_input(inp: In) -> str:
     end_time = time.time()
     print(f"turn took {end_time - start_time:.2f}s")
 
+    #print("result:", result)
+
     status = result.get("status")
     graph_state = result.get("state") or {}
 

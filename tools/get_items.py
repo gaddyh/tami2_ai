@@ -27,7 +27,7 @@ def _build_last_tasks_listing(tasks: list[dict]) -> LastTasksListing:
             for i, t in enumerate(tasks)
         ],
     )
-
+ 
 def _get_items(
     user_id: str,
     item_type: Literal["reminders", "tasks", "events", "scheduled_messages", "action_items"],
@@ -94,11 +94,24 @@ def _get_items(
             cal = GoogleCalendarStore()
             items = cal.get_items(user_id=user_id, from_date=from_date_utc, to_date=to_date_utc, status=status)
 
-        return _ok({"items": items})
+        return {
+            "ok": True,
+            "items": items,
+            "error": None,
+            "code": None,
+        }
 
     except Exception:
-        return _fail("internal_error", {"items": []})
-
+        import traceback
+        traceback.print_exc()
+        # ✅ and here too: no _fail()
+        return {
+            "ok": False,
+            "items": [],
+            "error": "internal_error",
+            "code": None,
+        }
+        
 @instrument_io(
     name="tool.get_items",
     meta={"agent": "tami", "operation": "tool", "tool": "get_items", "schema": "GetItems.v1"},

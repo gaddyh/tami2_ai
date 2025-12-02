@@ -11,15 +11,19 @@ def _drop_nones(d: Dict[str, Any]) -> Dict[str, Any]:
     return {k: v for k, v in d.items() if v is not None}
 
 def _task_to_payload(task: TaskItem, user_id: str) -> Dict[str, Any]:
-    """For create: build full payload (schema-agnostic)."""
     data = task.model_dump(exclude_unset=True)
     data["user_id"] = user_id
-    # Normalize: remove tool-only keys
     data.pop("command", None)
-    # Ignore empty/blank due strings
+
+    # default status for new tasks
+    if "status" not in data:
+        data["status"] = "open"
+
     if isinstance(data.get("due"), str) and not data["due"].strip():
         data["due"] = None
-    return _drop_nones(data)
+
+    return {k: v for k, v in data.items() if v is not None}
+
 
 def _task_to_patch(task: TaskItem) -> Dict[str, Any]:
     """For update: build partial patch (schema-agnostic)."""
@@ -69,6 +73,15 @@ def _process_task(user_id: str, task: TaskItem) -> dict:
             if not ok:
                 return _fail("not_found", code="not_found")
             return _ok(task.item_id)
+        
+        if task.command == "complete":
+            if not task.item_id:
+                return _fail("missing_item_id", code="validation_error")
+            ok = store.update(user_id=user_id, item_id=task.item_id, changes={"status": "completed"})
+            if not ok:
+                return _fail("not_found", code="not_found")
+            return _ok(task.item_id)
+
 
         return _fail("unknown_command")
 

@@ -91,7 +91,7 @@ class TaskStore:
             data["due"] = _parse_to_utc(data["due"])
         if "due" not in data:
             data["due"] = None                      # always present (nullable)
-        data["status"] = data.get("status") or "pending"
+        data["status"] = data.get("status") or "open"
         data.setdefault("item_type", "task")
         data["created_at"] = now_iso
         data["updated_at"] = now_iso

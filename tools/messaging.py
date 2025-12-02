@@ -73,8 +73,9 @@ def _process_scheduled_message(
 
     except Exception as e:
         print(f"Error in process_scheduled_message: {e}")
-        import traceback
 
-        traceback.print_exc()
-        raise  # <--- let it propagate so you get a full stack trace
+        #import traceback
+        #traceback.print_exc()
+        #raise  # <--- let it propagate so you get a full stack trace
+        return _fail(f"_process_scheduled_message failed for user {user_id}. error: {str(e)}", {"item_id": None})
 

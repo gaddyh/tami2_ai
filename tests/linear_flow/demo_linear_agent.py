@@ -1,34 +1,33 @@
 # demo_notes_agent.py
 
 from typing import Dict, Any
-from agent.linear_flow.graph import build_agent_app
-from agent.tami.tasks.prompt import TASKS_PLANNER_SYSTEM_PROMPT, TASKS_RESPONDER_SYSTEM_PROMPT
-from observability.obs import instrument
 from datetime import datetime
-# -------------------------------
-# Build the app
-# -------------------------------
-from agent.tami.tasks.tools import tools_reference, tools
-system_prompt = TASKS_PLANNER_SYSTEM_PROMPT + "\n\n" + tools_reference
-
-app = build_agent_app(
-    project_name="tasks__linear_demo",
-    planner_system_prompt=system_prompt,
-    tools=tools,
-    responder_system_prompt=TASKS_RESPONDER_SYSTEM_PROMPT,
-)
-# -------------------------------
-# Tiny CLI loop to test
-# -------------------------------
-
-from agent.linear_flow.state import LinearAgentState
-from observability.obs import instrument
+from models.input import In, Source, Category
+import uuid
+from shared.time import utcnow, now_iso_in_tz
 import time
+from agent.tami.main import process_input
 
-@instrument(agent="tasks_linear_agent", operation="run", schema_version="tasks.v1")
-def run_agent_flow(state: LinearAgentState, config: Dict[str, Any]) -> LinearAgentState:
-    result = app.invoke(state, config=config)
-    return result
+def run(text, thread_id):
+    start_time = time.time()
+    res = process_input(In(
+        thread_id=thread_id, 
+        text=text, 
+        user_id="972546610653", 
+        user_name="user_name", 
+        source=Source.WHATSAPP, 
+        category=Category.USER_REQUEST, 
+        input_id=uuid.uuid4().hex, 
+        idempotency_key=uuid.uuid4().hex,
+        tz="Asia/Jerusalem",
+        locale="he",
+        current_datetime=now_iso_in_tz("Asia/Jerusalem"),
+        received_at=utcnow(),
+        redacted=False,
+    ))
+    end_time = time.time()
+    print(f"turn took {end_time - start_time:.2f}s")
+    return res
 
 
 def _now_iso() -> str:
@@ -36,18 +35,6 @@ def _now_iso() -> str:
 
 def main():
     print("Tasks Agent Demo. Type 'quit' to exit.\n")
-
-    state: LinearAgentState = {
-        "project": "tasks__linear_demo",
-        "project_state": {
-            "tasks": [],
-        },
-        "messages": [],
-        "context": {
-            "current_datetime": _now_iso(),
-            "default_tz": "Asia/Jerusalem",
-        },
-    }
 
     test_inputs1 = [
         "whats my tasks",
@@ -65,29 +52,19 @@ def main():
     ]
 
     test_inputs = [
-        "add 3 tasks:check mail, throw garbage, clean table",
         "whats my tasks",
-        "i checked my mail already",
+        "delete check mail",
         "whats my tasks",
     ]
 
     for user in test_inputs:
         print("You:", user)
-        state["input_text"] = user
-
         start = time.perf_counter_ns()
-        result = run_agent_flow(state, config={"thread_id": "tasks__linear_demo"})
-        state = result
+        result = run(user, "tasks__linear_demo")
         elapsed = (time.perf_counter_ns() - start) / 1e6
         print(f"Agent flow took {elapsed:.2f}ms")
 
-        reply = (
-            state.get("final_message")
-            or state.get("followup_message")
-            or state.get("response")
-            or "(no reply)"
-        )
-        print("\nBot:", reply)
+        print("\nBot:", result)
 
 
 
