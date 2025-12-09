@@ -110,9 +110,9 @@ async def lifespan(app: FastAPI):
     loop_task   = asyncio.create_task(trigger_events_loop(stop_event), name="trigger_events_loop")
     worker_task = asyncio.create_task(_queue_worker(stop_event),        name="queue_worker")
     pool_task   = asyncio.create_task(pool_worker(stop_event),          name="pool_worker")
-    digest_task = asyncio.create_task(daily_digest_loop(stop_event),    name="daily_digest_loop")
+    #digest_task = asyncio.create_task(daily_digest_loop(stop_event),    name="daily_digest_loop")
 
-    tasks = (loop_task, worker_task, pool_task, digest_task)
+    tasks = (loop_task, worker_task, pool_task)
 
     try:
         yield
