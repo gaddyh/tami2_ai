@@ -259,7 +259,10 @@ class TaskStore:
             q = self.collection.where("user_id", "==", user_id)
 
             if status != "all":
-                q = q.where("status", "==", status)
+                if status == "open" or status == "pending":
+                    q = q.where("status", "in", ["pending", "open"])
+                else:
+                    q = q.where("status", "==", status)
 
             if from_date is not None:
                 q = q.where("due", ">=", _ensure_aware_utc(from_date))
