@@ -108,6 +108,10 @@ class CloudAPIAdapter(WhatsAppAdapter):
             contact = value.get("contacts", [{}])[0]
             message = value.get("messages", [{}])[0]
 
+            metadata = value.get("metadata", {})
+            phone_number_id = (metadata.get("phone_number_id") or "").strip()
+            print("phone_number_id", phone_number_id)
+
             sender_phone = (contact.get("wa_id") or message.get("from") or "").strip()
             sender_name = ((contact.get("profile") or {}).get("name") or "").strip()
             chat_id = sender_phone
